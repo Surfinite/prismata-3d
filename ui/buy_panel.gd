@@ -1,15 +1,16 @@
 class_name BuyPanel
 extends VBoxContainer
 
-## Vertical buy panel on the left side — base cards, separator, randomizer cards.
-## Each row: card art thumbnail + name + cost pips + supply count.
+## Two-column buy panel — base cards (left), randomizer cards (right).
+## Each row: card art thumbnail (left) + name + cost pips + supply (right).
+## Matches SWF layout: two side-by-side columns.
 
-const ROW_HEIGHT = 36
-const ART_SIZE = 28
-const PIP_SIZE = 9
+const ROW_HEIGHT = 32
+const ART_SIZE = 26
+const PIP_SIZE = 8
 const PIP_GAP = 1
 const FONT_SIZE_NAME = 9
-const FONT_SIZE_SUPPLY = 9
+const FONT_SIZE_SUPPLY = 8
 
 # Cost pip colors (matching SWF/PixiJS)
 const COLOR_GOLD = Color(1.0, 0.8, 0.0)
@@ -18,8 +19,8 @@ const COLOR_BLUE = Color(0.27, 0.53, 1.0)
 const COLOR_RED = Color(0.8, 0.2, 0.2)
 const COLOR_ENERGY = Color(0.6, 0.4, 1.0)
 
-# Base card display order (SWF order)
-const BASE_ORDER = ["Drone", "Engineer", "Conduit", "Blastforge", "Animus"]
+# Base card identification uses the baseSet flag from deck data.
+# Display order preserved from mergedDeck (SWF internal card ID order).
 
 var _initialized: bool = false
 
@@ -31,39 +32,42 @@ func show_deck(deck_info: Array) -> void:
 	for child in get_children():
 		child.queue_free()
 
-	# Split into base and randomizer
+	# Split into base and randomizer, preserving mergedDeck order (SWF internal card ID order)
+	# Non-buyable cards (spawned tokens) are already filtered out by replay_to_snapshots.js
 	var base_cards: Array = []
 	var random_cards: Array = []
-	var card_by_name: Dictionary = {}
 
 	for card in deck_info:
-		card_by_name[str(card.get("displayName", ""))] = card
 		if card.get("baseSet", false):
 			base_cards.append(card)
 		else:
 			random_cards.append(card)
 
-	# Sort base cards in SWF order
-	var ordered_base: Array = []
-	for name in BASE_ORDER:
-		if card_by_name.has(name):
-			ordered_base.append(card_by_name[name])
+	# Two-column layout: 11 base cards (left), randomizer cards (right)
+	var columns = HBoxContainer.new()
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	columns.add_theme_constant_override("separation", 4)
 
-	# Sort randomizer alphabetically
-	random_cards.sort_custom(func(a, b): return str(a.get("displayName", "")) < str(b.get("displayName", "")))
+	var left_col = VBoxContainer.new()
+	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_col.add_theme_constant_override("separation", 2)
 
-	# Add base cards
-	for card in ordered_base:
-		add_child(_make_card_row(card))
+	var right_col = VBoxContainer.new()
+	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_col.add_theme_constant_override("separation", 2)
 
-	# Separator
-	var sep = HSeparator.new()
-	sep.custom_minimum_size = Vector2(0, 4)
-	add_child(sep)
+	# Left column: base cards in mergedDeck order
+	for card in base_cards:
+		left_col.add_child(_make_card_row(card))
 
-	# Add randomizer cards
+	# Right column: randomizer cards
 	for card in random_cards:
-		add_child(_make_card_row(card))
+		right_col.add_child(_make_card_row(card))
+
+	columns.add_child(left_col)
+	columns.add_child(right_col)
+	add_child(columns)
 
 
 func _make_card_row(card: Dictionary) -> Control:
@@ -74,7 +78,7 @@ func _make_card_row(card: Dictionary) -> Control:
 
 	# Row panel with dark background
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(140, ROW_HEIGHT)
+	panel.custom_minimum_size = Vector2(0, ROW_HEIGHT)
 
 	# Style: dark semi-transparent background
 	var style = StyleBoxFlat.new()
@@ -83,49 +87,18 @@ func _make_card_row(card: Dictionary) -> Control:
 	style.corner_radius_top_right = 3
 	style.corner_radius_bottom_left = 3
 	style.corner_radius_bottom_right = 3
-	style.content_margin_left = 3
-	style.content_margin_right = 3
-	style.content_margin_top = 2
-	style.content_margin_bottom = 2
+	style.content_margin_left = 2
+	style.content_margin_right = 2
+	style.content_margin_top = 1
+	style.content_margin_bottom = 1
 	panel.add_theme_stylebox_override("panel", style)
 
-	# Main layout: left info + right art
+	# Main layout: art (left) + info (right)
 	var hbox = HBoxContainer.new()
 	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_theme_constant_override("separation", 3)
 
-	# Left side: name + cost pips stacked
-	var left = VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.add_theme_constant_override("separation", 1)
-
-	# Name label
-	var name_lbl = Label.new()
-	name_lbl.text = display_name
-	name_lbl.add_theme_font_size_override("font_size", FONT_SIZE_NAME)
-	name_lbl.add_theme_color_override("font_color", Color.WHITE)
-	left.add_child(name_lbl)
-
-	# Cost pips row
-	var pip_row = HBoxContainer.new()
-	pip_row.add_theme_constant_override("separation", PIP_GAP)
-	var pips = _parse_cost(buy_cost)
-	for pip_color in pips:
-		var pip = ColorRect.new()
-		pip.custom_minimum_size = Vector2(PIP_SIZE, PIP_SIZE)
-		pip.color = pip_color
-		pip_row.add_child(pip)
-	left.add_child(pip_row)
-
-	# Supply label
-	var supply_lbl = Label.new()
-	supply_lbl.text = "x%d" % supply
-	supply_lbl.add_theme_font_size_override("font_size", FONT_SIZE_SUPPLY)
-	supply_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	left.add_child(supply_lbl)
-
-	hbox.add_child(left)
-
-	# Right side: card art thumbnail
+	# Left side: card art thumbnail
 	var art = TextureRect.new()
 	art.custom_minimum_size = Vector2(ART_SIZE, ART_SIZE)
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -135,6 +108,38 @@ func _make_card_row(card: Dictionary) -> Control:
 		art.texture = load(sprite_path)
 	hbox.add_child(art)
 
+	# Right side: name + cost pips stacked
+	var right = VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 0)
+
+	# Name label
+	var name_lbl = Label.new()
+	name_lbl.text = display_name
+	name_lbl.add_theme_font_size_override("font_size", FONT_SIZE_NAME)
+	name_lbl.add_theme_color_override("font_color", Color.WHITE)
+	right.add_child(name_lbl)
+
+	# Cost pips row + supply count on same line
+	var cost_row = HBoxContainer.new()
+	cost_row.add_theme_constant_override("separation", PIP_GAP)
+	var pips = _parse_cost(buy_cost)
+	for pip_color in pips:
+		var pip = ColorRect.new()
+		pip.custom_minimum_size = Vector2(PIP_SIZE, PIP_SIZE)
+		pip.color = pip_color
+		cost_row.add_child(pip)
+
+	# Supply count after pips
+	var supply_lbl = Label.new()
+	supply_lbl.text = "x%d" % supply
+	supply_lbl.add_theme_font_size_override("font_size", FONT_SIZE_SUPPLY)
+	supply_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	cost_row.add_child(supply_lbl)
+
+	right.add_child(cost_row)
+
+	hbox.add_child(right)
 	panel.add_child(hbox)
 	return panel
 

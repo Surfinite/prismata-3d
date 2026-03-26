@@ -17,7 +17,7 @@ extends Camera3D
 @export var zoom_speed: float = 0.3
 @export var pan_speed: float = 0.005
 
-# 3D orbit mode (T key toggle, for future use)
+# 3D orbit mode — press T to toggle
 var _3d_mode: bool = false
 var _orbit_distance: float = 8.0
 var _orbit_pitch: float = -45.0
@@ -26,6 +26,15 @@ var _orbit_speed: float = 0.3
 
 var _dragging_pan: bool = false
 var _dragging_orbit: bool = false
+
+# Smooth transition between top-down and 3D
+var _transitioning: bool = false
+var _transition_timer: float = 0.0
+const TRANSITION_DURATION: float = 0.6
+var _trans_start_pos: Vector3
+var _trans_start_rot: Vector3
+var _trans_end_pos: Vector3
+var _trans_end_rot: Vector3
 
 # Cinematic focus (for hooks)
 var _focus_start: Vector3 = Vector3.ZERO
@@ -87,13 +96,37 @@ func _input(event):
 
 func _toggle_3d_mode():
 	_3d_mode = not _3d_mode
+
+	# Capture current transform as start
+	_trans_start_pos = global_position
+	_trans_start_rot = global_rotation
+
+	# Compute target transform
 	if _3d_mode:
 		projection = Camera3D.PROJECTION_PERSPECTIVE
 		fov = 75.0
+		# Compute where 3D orbit camera would be
+		var pitch_rad = deg_to_rad(_orbit_pitch)
+		var yaw_rad = deg_to_rad(_orbit_yaw)
+		var offset = Vector3(
+			sin(yaw_rad) * cos(pitch_rad) * _orbit_distance,
+			-sin(pitch_rad) * _orbit_distance,
+			cos(yaw_rad) * cos(pitch_rad) * _orbit_distance
+		)
+		_trans_end_pos = focus_point + offset
+		# look_at rotation — compute it
+		var tmp_transform = Transform3D()
+		tmp_transform.origin = _trans_end_pos
+		tmp_transform = tmp_transform.looking_at(focus_point, Vector3.UP)
+		_trans_end_rot = tmp_transform.basis.get_euler()
 	else:
 		projection = Camera3D.PROJECTION_ORTHOGONAL
 		size = ortho_size
-	_update_transform()
+		_trans_end_pos = focus_point + Vector3(0, 20, 0)
+		_trans_end_rot = Vector3(deg_to_rad(-90), 0, 0)
+
+	_transitioning = true
+	_transition_timer = 0.0
 
 func _update_transform():
 	var shake_offset = Vector3.ZERO
@@ -121,6 +154,17 @@ func _update_transform():
 		global_rotation = Vector3(deg_to_rad(-90), 0, 0)
 
 func _process(delta):
+	if _transitioning:
+		_transition_timer += delta
+		var t = clampf(_transition_timer / TRANSITION_DURATION, 0.0, 1.0)
+		t = t * t * (3.0 - 2.0 * t)  # smoothstep
+		global_position = _trans_start_pos.lerp(_trans_end_pos, t)
+		global_rotation = _trans_start_rot.lerp(_trans_end_rot, t)
+		if t >= 1.0:
+			_transitioning = false
+			_update_transform()
+		return  # Skip normal updates during transition
+
 	if _shake_timer > 0:
 		_shake_timer -= delta
 		if _shake_timer <= 0:

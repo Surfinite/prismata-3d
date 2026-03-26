@@ -48,25 +48,26 @@ const ICON_LABEL_PIXEL_SIZE = 0.004
 const ICON_LABEL_FONT_SIZE = 12
 const ICON_LABEL_OUTLINE = 6
 
-# Auto-generated from tools/generate_godot_positions.js (with flip_v Z-negation)
+# Auto-generated from tools/generate_godot_positions.js
 # Source: PixiJS constants.ts + StatusOverlay.ts + UnitCard.ts
 # Card: 82px = 1.0 world unit. Icon: 18px. Center-anchored.
-# Z is negated because CardSkin has flip_v=true.
+# Camera screen-up = world -Z, so SWF top (y=0) → negative Z, SWF bottom (y=82) → positive Z.
+# Formula: Z = (py / 82) - 0.5
 
 # Fixed icon positions (center of 18px icon)
-const ATTACK_ICON_POS = Vector3(-0.0976, 0.025, -0.3537)
-const DEFENSE_ICON_POS = Vector3(0.3415, 0.025, -0.3537)
+const ATTACK_ICON_POS = Vector3(-0.0976, 0.025, 0.3537)
+const DEFENSE_ICON_POS = Vector3(0.3415, 0.025, 0.3537)
 # Fixed icon number positions
-const ATTACK_NUM_POS = Vector3(-0.2927, 0.026, -0.2927)
-const DEFENSE_NUM_POS = Vector3(0.1463, 0.026, -0.2927)
+const ATTACK_NUM_POS = Vector3(-0.2927, 0.026, 0.2927)
+const DEFENSE_NUM_POS = Vector3(0.1463, 0.026, 0.2927)
 
 # Variable icon layout (center of 18px icon, left side of card)
 const VAR_ICON_X = -0.3537
-const VAR_ICON_START_Z = 0.1341
-const VAR_ICON_SPACING = -0.2439  # negative: stacks downward in screen space
+const VAR_ICON_START_Z = -0.1341
+const VAR_ICON_SPACING = 0.2439  # positive: stacks downward on screen (toward +Z)
 const VAR_ICON_Y = 0.025
 # Variable number offset from icon center
-const VAR_NUM_OFFSET = Vector3(-0.1341, 0.001, 0.0244)
+const VAR_NUM_OFFSET = Vector3(-0.1341, 0.001, -0.0244)
 
 
 func _ready() -> void:
@@ -123,7 +124,7 @@ func _setup_build_timer() -> void:
 	_build_timer_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	_build_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_build_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_build_timer_label.transform = Transform3D(FLAT_BASIS, Vector3(-0.4878, 0.028, 0.4634))  # SWF pixel (1, 3), Z negated for flip_v
+	_build_timer_label.transform = Transform3D(FLAT_BASIS, Vector3(-0.4878, 0.028, -0.4634))  # SWF pixel (1, 3)
 	_build_timer_label.visible = false
 	add_child(_build_timer_label)
 
@@ -135,7 +136,7 @@ func _setup_snowflake() -> void:
 	var tex = assets.get_effect("chill_snowflake")
 	if tex:
 		_snowflake.texture = tex
-	_snowflake.transform = Transform3D(FLAT_BASIS, Vector3(0.0, 0.02, -0.0244))  # SWF center (41, 43), Z negated for flip_v
+	_snowflake.transform = Transform3D(FLAT_BASIS, Vector3(0.0, 0.02, 0.0244))  # SWF center (41, 43)
 	_snowflake.visible = false
 	_effect_container.add_child(_snowflake)
 
