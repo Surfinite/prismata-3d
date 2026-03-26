@@ -1,6 +1,9 @@
 extends Node3D
 
 var _replay: ReplayController
+var _hooks: VisualHooks
+var _buy_hook: BuyHook
+var _kill_hook: KillHook
 @onready var _battlefield: Battlefield = $Battlefield
 @onready var _hud: ReplayHUD = $ReplayHUD
 
@@ -15,14 +18,15 @@ func _ready():
 	_replay.snapshot_changed.connect(_on_snapshot_changed)
 
 	# Wire hooks BEFORE loading data (signals are synchronous)
-	var hooks = VisualHooks.new()
-	var buy_hook = BuyHook.new()
-	hooks.register("buy", buy_hook.handle_event)
-	var kill_hook = KillHook.new()
-	hooks.register("kill", kill_hook.handle_event)
-	hooks.register("sacrifice", kill_hook.handle_event)
-	hooks.register("breach_kill", kill_hook.handle_event)
-	_battlefield.set_visual_hooks(hooks)
+	# Store as member vars to prevent RefCounted GC
+	_hooks = VisualHooks.new()
+	_buy_hook = BuyHook.new()
+	_hooks.register("buy", _buy_hook.handle_event)
+	_kill_hook = KillHook.new()
+	_hooks.register("kill", _kill_hook.handle_event)
+	_hooks.register("sacrifice", _kill_hook.handle_event)
+	_hooks.register("breach_kill", _kill_hook.handle_event)
+	_battlefield.set_visual_hooks(_hooks)
 	_battlefield.set_camera($Camera)
 
 	# Connect HUD BEFORE loading data so it receives the initial snapshot
