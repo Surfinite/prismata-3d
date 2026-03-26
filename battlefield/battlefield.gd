@@ -14,9 +14,13 @@ const ROW_SPACING_X = 1.2
 var _unit_registry: Dictionary = {}   # unitId (int) -> UnitNode
 var _prev_positions: Dictionary = {}  # unitId (int) -> Vector3
 var _visual_hooks: VisualHooks = null
+var _camera: Camera3D = null
 
 func set_visual_hooks(hooks: VisualHooks) -> void:
 	_visual_hooks = hooks
+
+func set_camera(camera: Camera3D) -> void:
+	_camera = camera
 
 func apply_snapshot(prev_snapshot: Variant, current_snapshot: Variant, transition_type: String) -> void:
 	# Cache positions BEFORE reconciliation (for death effect positioning)
@@ -39,6 +43,7 @@ func _build_visual_context(prev_snapshot: Variant, current_snapshot: Variant) ->
 	ctx._unit_registry = _unit_registry
 	ctx._prev_positions = _prev_positions
 	ctx.battlefield_root = self
+	ctx.camera = _camera
 	return ctx
 
 func _reconcile(snapshot: Variant) -> void:

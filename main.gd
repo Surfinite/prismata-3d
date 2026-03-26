@@ -25,6 +25,7 @@ func _ready():
 	hooks.register("sacrifice", kill_hook.handle_event)
 	hooks.register("breach_kill", kill_hook.handle_event)
 	_battlefield.set_visual_hooks(hooks)
+	_battlefield.set_camera($Camera)
 
 	_hud.init(_replay)
 
@@ -52,6 +53,8 @@ func _input(event: InputEvent):
 			KEY_SPACE:
 				_replay.toggle_play()
 			KEY_HOME:
-				_replay.jump_to_seq(0)
+				var min_seq = _replay.get_min_seq()
+				if min_seq >= 0:
+					_replay.jump_to_seq(min_seq)
 			KEY_END:
 				_replay.jump_to_seq(_replay.get_latest_seq())
