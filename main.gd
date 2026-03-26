@@ -13,10 +13,8 @@ func _ready():
 	_replay = ReplayController.new()
 	add_child(_replay)
 	_replay.snapshot_changed.connect(_on_snapshot_changed)
-	_replay.init(provider)
 
-	provider.load_file("res://data/test_match.json")
-
+	# Wire hooks BEFORE loading data (signals are synchronous)
 	var hooks = VisualHooks.new()
 	var buy_hook = BuyHook.new()
 	hooks.register("buy", buy_hook.handle_event)
@@ -27,7 +25,12 @@ func _ready():
 	_battlefield.set_visual_hooks(hooks)
 	_battlefield.set_camera($Camera)
 
+	# Connect HUD BEFORE loading data so it receives the initial snapshot
 	_hud.init(_replay)
+
+	# Now connect provider and load — all listeners are ready
+	_replay.init(provider)
+	provider.load_file("res://data/test_match.json")
 
 func _on_snapshot_changed(prev: Variant, current: Variant, transition_type: String):
 	_battlefield.apply_snapshot(prev, current, transition_type)
