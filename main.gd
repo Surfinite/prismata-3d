@@ -1,6 +1,7 @@
 extends Node3D
 
 var _replay: ReplayController
+@onready var _battlefield: Battlefield = $Battlefield
 
 func _ready():
 	print("Prismata 3D Viewer loaded")
@@ -16,6 +17,8 @@ func _ready():
 	provider.load_file("res://data/test_match.json")
 
 func _on_snapshot_changed(prev: Variant, current: Variant, transition_type: String):
+	_battlefield.apply_snapshot(prev, current, transition_type)
+
 	var phase = current.get("phase", "?")
 	var player = "P" + str(current.get("activePlayer", 0))
 	var p0u = current["players"][0]["units"].size()
