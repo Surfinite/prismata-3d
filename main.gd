@@ -2,6 +2,7 @@ extends Node3D
 
 var _replay: ReplayController
 @onready var _battlefield: Battlefield = $Battlefield
+@onready var _hud: ReplayHUD = $ReplayHUD
 
 func _ready():
 	print("Prismata 3D Viewer loaded")
@@ -24,6 +25,8 @@ func _ready():
 	hooks.register("sacrifice", kill_hook.handle_event)
 	hooks.register("breach_kill", kill_hook.handle_event)
 	_battlefield.set_visual_hooks(hooks)
+
+	_hud.init(_replay)
 
 func _on_snapshot_changed(prev: Variant, current: Variant, transition_type: String):
 	_battlefield.apply_snapshot(prev, current, transition_type)
