@@ -38,6 +38,9 @@ var _var_icons: Array = []  # order: hp, frontline, delay, doom, charge, chill
 # Snowflake effect sprite
 var _snowflake: Sprite3D
 
+# Construction timer label (large centered countdown)
+var _build_timer_label: Label3D
+
 # Icon sizing
 const ICON_PIXEL_SIZE = 0.00688       # 32px icons → ~0.22 world units
 const SWORD_PIXEL_SIZE = 0.000477     # 461px sword_blue → ~0.22 world units
@@ -65,6 +68,7 @@ func _ready() -> void:
 	_setup_fixed_icons()
 	_setup_variable_icons()
 	_setup_snowflake()
+	_setup_build_timer()
 
 
 func _setup_fixed_icons() -> void:
@@ -104,6 +108,21 @@ func _setup_variable_icons() -> void:
 			def["color"]
 		)
 		_var_icons.append({"icon": icon, "label": lbl, "key": def["key"]})
+
+
+func _setup_build_timer() -> void:
+	_build_timer_label = Label3D.new()
+	_build_timer_label.pixel_size = 0.005
+	_build_timer_label.font_size = 28
+	_build_timer_label.modulate = Color.WHITE
+	_build_timer_label.outline_size = 6
+	_build_timer_label.outline_modulate = Color(0, 0, 0, 1)
+	_build_timer_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	_build_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_build_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_build_timer_label.transform = Transform3D(FLAT_BASIS, Vector3(0, 0.028, 0.05))
+	_build_timer_label.visible = false
+	add_child(_build_timer_label)
 
 
 func _setup_snowflake() -> void:
@@ -220,6 +239,14 @@ func _apply_layers(vs: Dictionary) -> void:
 		_damage_label.visible = true
 	else:
 		_damage_label.visible = false
+
+	# Construction timer (large centered number)
+	var build_turns = int(vs["build_turns"])
+	if build_turns > 0:
+		_build_timer_label.text = str(build_turns)
+		_build_timer_label.visible = true
+	else:
+		_build_timer_label.visible = false
 
 
 func _apply_status_icons(vs: Dictionary) -> void:
