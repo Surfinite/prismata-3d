@@ -107,7 +107,36 @@ Type `/` in Claude Code to see all available skills.
 - Unit reference: `docs/wiki/PRISMATA_REFERENCE.md`
 - Strategy guide (game knowledge): `docs/prismata-strategy-guide.md`
 
+### Creating 3D models from card art
+
+You can use AI to generate 3D models from the 2D card sprites. Several approaches:
+
+**AI image-to-3D tools (easiest — upload card art, get a model back):**
+- [Tripo](https://www.tripo3d.ai) — free, outputs GLB. Upload a card sprite, get a 3D model in seconds.
+- [Meshy](https://www.meshy.ai) — has a dedicated low-poly game mode and Godot export. Free tier limited.
+- [AI3DGen](https://www.ai3dgen.com/) — no signup needed, outputs OBJ/STL/GLB.
+- [3D AI Studio](https://www.3daistudio.com/UseCases/Godot) — specifically targets Godot, outputs GLB with PBR materials.
+
+**Claude + Blender MCP (most powerful — Claude controls Blender directly):**
+- Install [Blender MCP](https://github.com/ahujasid/blender-mcp) addon in Blender
+- Claude can then create, modify, texture 3D models via natural language
+- Guide: [How to Connect Claude AI to Blender](https://medium.com/@gizmo.codes/how-to-connect-claude-ai-to-blender-a-practical-guide-for-3d-artists-b96c141cd97c)
+- This lets you say things like "make a small robot drone with propellers" and Claude builds it in Blender
+
+**Manual Blender workflow:**
+- Import card sprite as reference image in Blender
+- Model by hand or use Blender's sculpting tools
+- Export as `.glb` (File → Export → glTF 2.0)
+- Drop the `.glb` into `assets/models/` — Godot imports it automatically
+
+**Tips:**
+- Start with Drone — simplest, most common, instant visual impact
+- AI-generated models often need cleanup in Blender (reduce poly count, fix normals)
+- Target <5000 triangles per model for good performance with 30+ units on screen
+- Card sprites at `assets/card_sprites/drone.png` etc. make good reference images for AI tools
+
 ### Quick start tasks
 1. Open the Godot project, press F5, see the 2D replay viewer working
-2. Create a simple 3D Drone model (or find one) and put it in `assets/models/`
-3. Ask Claude to help you write a script that replaces the Drone sprite with your 3D model
+2. Try generating a 3D Drone model — upload `assets/card_sprites/drone.png` to [Tripo](https://www.tripo3d.ai) or [Meshy](https://www.meshy.ai)
+3. Export as `.glb`, put it in `assets/models/`
+4. Ask Claude to help you write a script that replaces the Drone sprite with your 3D model
