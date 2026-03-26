@@ -2,12 +2,12 @@ class_name OrbitCamera
 extends Camera3D
 
 @export var focus_point: Vector3 = Vector3.ZERO
-@export var distance: float = 15.0
-@export var pitch: float = -45.0  # degrees, negative = looking down
+@export var distance: float = 18.0
+@export var pitch: float = -89.0  # Start in top-down
 @export var yaw: float = 0.0
 
 @export var min_distance: float = 5.0
-@export var max_distance: float = 40.0
+@export var max_distance: float = 50.0
 @export var zoom_speed: float = 2.0
 @export var orbit_speed: float = 0.3
 @export var pan_speed: float = 0.02
@@ -15,7 +15,7 @@ extends Camera3D
 var _dragging_orbit: bool = false
 var _dragging_pan: bool = false
 var _user_active: bool = false
-var _top_down: bool = false
+var _top_down: bool = true  # Start in top-down mode
 var _stored_pitch: float = -45.0
 
 # Cinematic focus (for hooks)

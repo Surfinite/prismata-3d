@@ -144,7 +144,7 @@ func _reconcile(snapshot: Variant) -> void:
 					# Center the row around X=0 (layout gives positions from 0)
 					var centered_x = x_pos - ROW_WIDTH / 2.0
 
-					var pos = Vector3(centered_x, 0.5, z_offset)
+					var pos = Vector3(centered_x, 0.01, z_offset)
 
 					if _unit_registry.has(unit_id):
 						var node = _unit_registry[unit_id]
