@@ -152,13 +152,13 @@ func _reconcile(snapshot: Variant) -> void:
 
 					if _unit_registry.has(unit_id):
 						var node = _unit_registry[unit_id]
-						node.update_state(unit_data)
+						node.update_state(unit_data, owner)
 						node.position = pos
 					else:
 						var node = UNIT_NODE_SCENE.instantiate() as UnitNode
 						add_child(node)
-						node.setup(unit_data)
-						node.update_state(unit_data)
+						node.setup(unit_data, owner)
+						node.update_state(unit_data, owner)
 						node.position = pos
 						_unit_registry[unit_id] = node
 
