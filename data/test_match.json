@@ -1,0 +1,447 @@
+[
+  {
+    "schemaVersion": 1,
+    "seq": 0,
+    "turn": 1,
+    "phase": "action",
+    "presentationFlags": { "glassBroken": false, "swoosh": true },
+    "activePlayer": 0,
+    "viewPlayer": 0,
+    "matchMeta": {
+      "matchId": "test_handcrafted_001",
+      "players": [
+        { "id": 0, "name": "Surfinite" },
+        { "id": 1, "name": "homander" }
+      ]
+    },
+    "players": [
+      {
+        "id": 0,
+        "resources": { "gold": 6, "green": 0, "blue": 0, "red": 0, "energy": 0, "attack": 0 },
+        "units": [
+          {
+            "id": 1, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 10 }
+          },
+          {
+            "id": 2, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 11 }
+          },
+          {
+            "id": 3, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 12 }
+          },
+          {
+            "id": 4, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 13 }
+          },
+          {
+            "id": 5, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 14 }
+          },
+          {
+            "id": 6, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 15 }
+          },
+          {
+            "id": 7, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "front", "slot": 0 }
+          },
+          {
+            "id": 8, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "front", "slot": 1 }
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "resources": { "gold": 7, "green": 0, "blue": 0, "red": 0, "energy": 0, "attack": 0 },
+        "units": [
+          {
+            "id": 101, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 10 }
+          },
+          {
+            "id": 102, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 11 }
+          },
+          {
+            "id": 103, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 12 }
+          },
+          {
+            "id": 104, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 13 }
+          },
+          {
+            "id": 105, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 14 }
+          },
+          {
+            "id": 106, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 15 }
+          },
+          {
+            "id": 107, "cardId": "drone", "displayName": "Drone", "internalName": "Drone",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "middle", "slot": 16 }
+          },
+          {
+            "id": 108, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "front", "slot": 0 }
+          },
+          {
+            "id": 109, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "front", "slot": 1 }
+          }
+        ]
+      }
+    ],
+    "events": [],
+    "actionOptions": null
+  },
+  {
+    "schemaVersion": 1,
+    "seq": 1,
+    "turn": 1,
+    "phase": "action",
+    "presentationFlags": { "glassBroken": false, "swoosh": false },
+    "activePlayer": 0,
+    "viewPlayer": 0,
+    "players": [
+      {
+        "id": 0,
+        "resources": { "gold": 2, "green": 0, "blue": 2, "red": 0, "energy": 0, "attack": 0 },
+        "units": [
+          { "id": 1, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 2, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 3, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 4, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 5, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 6, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 7, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 8, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } },
+          {
+            "id": 9, "cardId": "blastforge", "displayName": "Blastforge", "internalName": "Brooder",
+            "stats": { "hp": 4, "maxHp": 4, "attack": 0, "chill": 0 },
+            "state": { "mode": "under_construction", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 1, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "back", "slot": 20 }
+          },
+          {
+            "id": 10, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 },
+            "state": { "mode": "under_construction", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 1, "lifespan": -1, "fragile": false, "frontline": true },
+            "render": { "row": "back", "slot": 21 }
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "resources": { "gold": 7, "green": 0, "blue": 0, "red": 0, "energy": 0, "attack": 0 },
+        "units": [
+          { "id": 101, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 102, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 103, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 104, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 105, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 106, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 107, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 16 } },
+          { "id": 108, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 109, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } }
+        ]
+      }
+    ],
+    "events": [
+      { "type": "buy", "player": 0, "cardId": "blastforge", "unitId": 9 },
+      { "type": "buy", "player": 0, "cardId": "tarsier", "unitId": 10 }
+    ],
+    "actionOptions": null
+  },
+  {
+    "schemaVersion": 1,
+    "seq": 2,
+    "turn": 2,
+    "phase": "action",
+    "presentationFlags": { "glassBroken": false, "swoosh": true },
+    "activePlayer": 1,
+    "viewPlayer": 0,
+    "players": [
+      {
+        "id": 0,
+        "resources": { "gold": 0, "green": 0, "blue": 2, "red": 0, "energy": 0, "attack": 0 },
+        "units": [
+          { "id": 1, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 2, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 3, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 4, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 5, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 6, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 7, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 8, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } },
+          {
+            "id": 9, "cardId": "blastforge", "displayName": "Blastforge", "internalName": "Brooder",
+            "stats": { "hp": 4, "maxHp": 4, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "back", "slot": 20 }
+          },
+          {
+            "id": 10, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true },
+            "render": { "row": "back", "slot": 21 }
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "resources": { "gold": 3, "green": 0, "blue": 0, "red": 0, "energy": 0, "attack": 0 },
+        "units": [
+          { "id": 101, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 102, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 103, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 104, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 105, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 106, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 107, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 16 } },
+          { "id": 108, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 109, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } },
+          {
+            "id": 110, "cardId": "conduit", "displayName": "Conduit", "internalName": "Conduit",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "under_construction", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 1, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "back", "slot": 20 }
+          },
+          {
+            "id": 111, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 },
+            "state": { "mode": "under_construction", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 1, "lifespan": -1, "fragile": false, "frontline": true },
+            "render": { "row": "back", "slot": 21 }
+          }
+        ]
+      }
+    ],
+    "events": [
+      { "type": "turn_start", "turn": 2, "activePlayer": 1 },
+      { "type": "buy", "player": 1, "cardId": "conduit", "unitId": 110 },
+      { "type": "buy", "player": 1, "cardId": "tarsier", "unitId": 111 }
+    ],
+    "actionOptions": null
+  },
+  {
+    "schemaVersion": 1,
+    "seq": 3,
+    "turn": 3,
+    "phase": "action",
+    "presentationFlags": { "glassBroken": false, "swoosh": true },
+    "activePlayer": 0,
+    "viewPlayer": 0,
+    "players": [
+      {
+        "id": 0,
+        "resources": { "gold": 4, "green": 0, "blue": 2, "red": 0, "energy": 0, "attack": 1 },
+        "units": [
+          { "id": 1, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 2, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 3, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 4, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 5, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 6, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 7, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 8, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } },
+          { "id": 9, "cardId": "blastforge", "displayName": "Blastforge", "internalName": "Brooder", "stats": { "hp": 4, "maxHp": 4, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "back", "slot": 20 } },
+          {
+            "id": 10, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true },
+            "render": { "row": "back", "slot": 21 }
+          },
+          {
+            "id": 11, "cardId": "wall", "displayName": "Wall", "internalName": "Wall",
+            "stats": { "hp": 3, "maxHp": 3, "attack": 0, "chill": 0 },
+            "state": { "mode": "under_construction", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 1, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "front", "slot": 2 }
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "resources": { "gold": 5, "green": 1, "blue": 0, "red": 0, "energy": 0, "attack": 0 },
+        "units": [
+          { "id": 101, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 102, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 103, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 104, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 105, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 106, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 107, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 16 } },
+          { "id": 108, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 109, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } },
+          { "id": 110, "cardId": "conduit", "displayName": "Conduit", "internalName": "Conduit", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "back", "slot": 20 } },
+          {
+            "id": 111, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true },
+            "render": { "row": "back", "slot": 21 }
+          }
+        ]
+      }
+    ],
+    "events": [
+      { "type": "turn_start", "turn": 3, "activePlayer": 0 },
+      { "type": "buy", "player": 0, "cardId": "wall", "unitId": 11 }
+    ],
+    "actionOptions": null
+  },
+  {
+    "schemaVersion": 1,
+    "seq": 4,
+    "turn": 4,
+    "phase": "defense",
+    "presentationFlags": { "glassBroken": false, "swoosh": false },
+    "activePlayer": 1,
+    "viewPlayer": 0,
+    "players": [
+      {
+        "id": 0,
+        "resources": { "gold": 0, "green": 0, "blue": 2, "red": 0, "energy": 0, "attack": 2 },
+        "units": [
+          { "id": 1, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 2, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 3, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 4, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 5, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 6, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 7, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 8, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } },
+          { "id": 9, "cardId": "blastforge", "displayName": "Blastforge", "internalName": "Brooder", "stats": { "hp": 4, "maxHp": 4, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "back", "slot": 20 } },
+          { "id": 10, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower", "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true }, "render": { "row": "back", "slot": 21 } },
+          { "id": 11, "cardId": "wall", "displayName": "Wall", "internalName": "Wall", "stats": { "hp": 3, "maxHp": 3, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 2 } },
+          {
+            "id": 12, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 },
+            "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true },
+            "render": { "row": "back", "slot": 22 }
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "resources": { "gold": 0, "green": 1, "blue": 0, "red": 0, "energy": 0, "attack": 1 },
+        "units": [
+          { "id": 101, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 102, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 103, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 104, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 105, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 106, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 107, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 16 } },
+          { "id": 108, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          {
+            "id": 109, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 },
+            "state": { "mode": "idle", "blocking": true, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false },
+            "render": { "row": "front", "slot": 1 }
+          },
+          { "id": 110, "cardId": "conduit", "displayName": "Conduit", "internalName": "Conduit", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "back", "slot": 20 } },
+          { "id": 111, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower", "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true }, "render": { "row": "back", "slot": 21 } },
+          {
+            "id": 112, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower",
+            "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 },
+            "state": { "mode": "under_construction", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 1, "lifespan": -1, "fragile": false, "frontline": true },
+            "render": { "row": "back", "slot": 22 }
+          }
+        ]
+      }
+    ],
+    "events": [
+      { "type": "phase_change", "phase": "defense", "activePlayer": 1 },
+      { "type": "assign_blocker", "player": 1, "unitId": 109, "incomingDamage": 2 }
+    ],
+    "actionOptions": null
+  },
+  {
+    "schemaVersion": 1,
+    "seq": 5,
+    "turn": 4,
+    "phase": "action",
+    "presentationFlags": { "glassBroken": false, "swoosh": true },
+    "activePlayer": 1,
+    "viewPlayer": 0,
+    "players": [
+      {
+        "id": 0,
+        "resources": { "gold": 0, "green": 0, "blue": 2, "red": 0, "energy": 0, "attack": 2 },
+        "units": [
+          { "id": 1, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 2, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 3, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 4, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 5, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 6, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 7, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 8, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 1 } },
+          { "id": 9, "cardId": "blastforge", "displayName": "Blastforge", "internalName": "Brooder", "stats": { "hp": 4, "maxHp": 4, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "back", "slot": 20 } },
+          { "id": 10, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower", "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true }, "render": { "row": "back", "slot": 21 } },
+          { "id": 11, "cardId": "wall", "displayName": "Wall", "internalName": "Wall", "stats": { "hp": 3, "maxHp": 3, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 2 } },
+          { "id": 12, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower", "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true }, "render": { "row": "back", "slot": 22 } }
+        ]
+      },
+      {
+        "id": 1,
+        "resources": { "gold": 7, "green": 1, "blue": 0, "red": 0, "energy": 0, "attack": 1 },
+        "units": [
+          { "id": 101, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 10 } },
+          { "id": 102, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 11 } },
+          { "id": 103, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 12 } },
+          { "id": 104, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 13 } },
+          { "id": 105, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 14 } },
+          { "id": 106, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 15 } },
+          { "id": 107, "cardId": "drone", "displayName": "Drone", "internalName": "Drone", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "middle", "slot": 16 } },
+          { "id": 108, "cardId": "engineer", "displayName": "Engineer", "internalName": "Engineer", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "front", "slot": 0 } },
+          { "id": 110, "cardId": "conduit", "displayName": "Conduit", "internalName": "Conduit", "stats": { "hp": 1, "maxHp": 1, "attack": 0, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": false, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": false }, "render": { "row": "back", "slot": 20 } },
+          { "id": 111, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower", "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true }, "render": { "row": "back", "slot": 21 } },
+          { "id": 112, "cardId": "tarsier", "displayName": "Tarsier", "internalName": "Tesla Tower", "stats": { "hp": 1, "maxHp": 1, "attack": 1, "chill": 0 }, "state": { "mode": "idle", "blocking": false, "attacking": true, "chilled": 0, "buildTurnsRemaining": 0, "lifespan": -1, "fragile": false, "frontline": true }, "render": { "row": "back", "slot": 22 } }
+        ]
+      }
+    ],
+    "events": [
+      { "type": "kill", "player": 1, "unitId": 109, "cause": { "type": "blocker_killed" } },
+      { "type": "turn_start", "turn": 4, "activePlayer": 1 },
+      { "type": "buy", "player": 1, "cardId": "tarsier", "unitId": 112 }
+    ],
+    "actionOptions": null
+  }
+]
