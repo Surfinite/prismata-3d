@@ -48,16 +48,25 @@ const ICON_LABEL_PIXEL_SIZE = 0.004
 const ICON_LABEL_FONT_SIZE = 12
 const ICON_LABEL_OUTLINE = 6
 
-# Variable icon layout
-const VAR_ICON_X = -0.38
-const VAR_ICON_START_Z = -0.3
-const VAR_ICON_SPACING = 0.18
-const VAR_ICON_Y = 0.025
+# Auto-generated from tools/generate_godot_positions.js (with flip_v Z-negation)
+# Source: PixiJS constants.ts + StatusOverlay.ts + UnitCard.ts
+# Card: 82px = 1.0 world unit. Icon: 18px. Center-anchored.
+# Z is negated because CardSkin has flip_v=true.
 
-# Fixed icon positions
-const ATTACK_ICON_POS = Vector3(0.15, 0.025, 0.32)
-const DEFENSE_ICON_POS = Vector3(0.35, 0.025, 0.32)
-const ICON_LABEL_OFFSET_Z = 0.12  # label below icon
+# Fixed icon positions (center of 18px icon)
+const ATTACK_ICON_POS = Vector3(-0.0976, 0.025, -0.3537)
+const DEFENSE_ICON_POS = Vector3(0.3415, 0.025, -0.3537)
+# Fixed icon number positions
+const ATTACK_NUM_POS = Vector3(-0.2927, 0.026, -0.2927)
+const DEFENSE_NUM_POS = Vector3(0.1463, 0.026, -0.2927)
+
+# Variable icon layout (center of 18px icon, left side of card)
+const VAR_ICON_X = -0.3537
+const VAR_ICON_START_Z = 0.1341
+const VAR_ICON_SPACING = -0.2439  # negative: stacks downward in screen space
+const VAR_ICON_Y = 0.025
+# Variable number offset from icon center
+const VAR_NUM_OFFSET = Vector3(-0.1341, 0.001, 0.0244)
 
 
 func _ready() -> void:
@@ -72,19 +81,13 @@ func _ready() -> void:
 
 
 func _setup_fixed_icons() -> void:
-	# Attack sword icon + number label
+	# Attack sword icon + number label (SWF: bottom-left area)
 	_attack_icon = _make_icon_sprite(ATTACK_ICON_POS, "sword_blue", SWORD_PIXEL_SIZE)
-	_attack_label = _make_icon_label(
-		ATTACK_ICON_POS + Vector3(0, 0.001, ICON_LABEL_OFFSET_Z),
-		Color(1.0, 0.85, 0.2)
-	)
+	_attack_label = _make_icon_label(ATTACK_NUM_POS, Color(1.0, 0.85, 0.2))
 
-	# Defense shield icon + number label
+	# Defense shield icon + number label (SWF: bottom-right area)
 	_defense_icon = _make_icon_sprite(DEFENSE_ICON_POS, "icon_defend", ICON_PIXEL_SIZE)
-	_defense_label = _make_icon_label(
-		DEFENSE_ICON_POS + Vector3(0, 0.001, ICON_LABEL_OFFSET_Z),
-		Color(0.4, 0.9, 1.0)
-	)
+	_defense_label = _make_icon_label(DEFENSE_NUM_POS, Color(0.4, 0.9, 1.0))
 
 
 func _setup_variable_icons() -> void:
@@ -104,7 +107,7 @@ func _setup_variable_icons() -> void:
 		var pos = Vector3(VAR_ICON_X, VAR_ICON_Y, VAR_ICON_START_Z + i * VAR_ICON_SPACING)
 		var icon = _make_icon_sprite(pos, def["key"], ICON_PIXEL_SIZE)
 		var lbl = _make_icon_label(
-			pos + Vector3(0, 0.001, ICON_LABEL_OFFSET_Z),
+			pos + VAR_NUM_OFFSET,
 			def["color"]
 		)
 		_var_icons.append({"icon": icon, "label": lbl, "key": def["key"]})
@@ -120,7 +123,7 @@ func _setup_build_timer() -> void:
 	_build_timer_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	_build_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_build_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_build_timer_label.transform = Transform3D(FLAT_BASIS, Vector3(0, 0.028, 0.05))
+	_build_timer_label.transform = Transform3D(FLAT_BASIS, Vector3(-0.4878, 0.028, 0.4634))  # SWF pixel (1, 3), Z negated for flip_v
 	_build_timer_label.visible = false
 	add_child(_build_timer_label)
 
@@ -132,7 +135,7 @@ func _setup_snowflake() -> void:
 	var tex = assets.get_effect("chill_snowflake")
 	if tex:
 		_snowflake.texture = tex
-	_snowflake.transform = Transform3D(FLAT_BASIS, Vector3(0, 0.02, 0))
+	_snowflake.transform = Transform3D(FLAT_BASIS, Vector3(0.0, 0.02, -0.0244))  # SWF center (41, 43), Z negated for flip_v
 	_snowflake.visible = false
 	_effect_container.add_child(_snowflake)
 
@@ -141,6 +144,7 @@ func _make_icon_sprite(pos: Vector3, icon_key: String, pix_size: float) -> Sprit
 	var spr = Sprite3D.new()
 	spr.pixel_size = pix_size
 	spr.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	spr.flip_v = true  # Match CardSkin flip_v orientation
 	var tex = assets.get_icon(icon_key)
 	if tex:
 		spr.texture = tex
@@ -171,10 +175,16 @@ func setup(unit_data: Dictionary, p_owner: int) -> void:
 	card_id = unit_data["cardId"]
 	unit_owner = p_owner
 
-	# Set card art sprite
+	# Set card art sprite — scale to fit inside background frame (0.878 of 1.0 world unit)
 	var sprite_path = "res://assets/card_sprites/%s.png" % card_id
 	if ResourceLoader.exists(sprite_path):
-		_card_skin.texture = load(sprite_path)
+		var tex = load(sprite_path)
+		_card_skin.texture = tex
+		# Cards are mixed sizes (128×128, 300×300). Set pixel_size so art
+		# renders at 0.878 world units regardless of source dimensions.
+		var tex_width = tex.get_width()
+		if tex_width > 0:
+			_card_skin.pixel_size = 0.878 / float(tex_width)
 
 	# Optional name label (hidden by default)
 	_name_label.text = unit_data.get("displayName", card_id)
@@ -331,7 +341,7 @@ func _apply_status_icons(vs: Dictionary) -> void:
 		var icon_entry = _var_icons[info["idx"]]
 		var z_pos = VAR_ICON_START_Z + slot_idx * VAR_ICON_SPACING
 		var icon_pos = Vector3(VAR_ICON_X, VAR_ICON_Y, z_pos)
-		var label_pos = icon_pos + Vector3(0, 0.001, ICON_LABEL_OFFSET_Z)
+		var label_pos = icon_pos + VAR_NUM_OFFSET
 
 		icon_entry["icon"].transform = Transform3D(FLAT_BASIS, icon_pos)
 		icon_entry["icon"].visible = true

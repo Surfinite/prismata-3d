@@ -1,0 +1,175 @@
+{
+  "backgrounds": {
+    "bg_dead.png": {
+      "source": "cardbg/Card_Inver.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_block.png": {
+      "source": "cardbg/Card_Blue.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_busy.png": {
+      "source": "cardbg/Card_Grey.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_absorb.png": {
+      "source": "cardbg/Card_Orange.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_chilled.png": {
+      "source": "cardbg/Card_Blue_Frost.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_bought.png": {
+      "source": "cardbg/Card_Trans.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_whitepink.png": {
+      "source": "cardbg/Card_WhitePink.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_blockred.png": {
+      "source": "cardbg/Card_Red.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_busyblue.png": {
+      "source": "cardbg/Card_BlueGrey.png",
+      "width": 148,
+      "height": 148
+    },
+    "bg_busyred.png": {
+      "source": "cardbg/Card_RedGrey.png",
+      "width": 148,
+      "height": 148
+    }
+  },
+  "overlays": {
+    "cover_blackclock.png": {
+      "source": "icons/status/highlight_blackclock.png",
+      "width": 148,
+      "height": 148
+    },
+    "cover_goldclock.png": {
+      "source": "icons/status/highlight_goldclock.png",
+      "width": 148,
+      "height": 148
+    },
+    "cover_cage.png": {
+      "source": "cardbg/highlight_cage2.png",
+      "width": 148,
+      "height": 148
+    },
+    "cover_goldshield.png": {
+      "source": "icons/status/highlight_goldshield.png",
+      "width": 148,
+      "height": 148
+    },
+    "cover_damagebang.png": {
+      "source": "icons/status/highlight_damagebang.png",
+      "width": 148,
+      "height": 148
+    },
+    "shade_whiteshield.png": {
+      "source": "icons/status/highlight_whiteshield.png",
+      "width": 148,
+      "height": 148
+    },
+    "shade_blueshield.png": {
+      "source": "icons/status/highlight_blueshield.png",
+      "width": 148,
+      "height": 148
+    },
+    "shade_whiteshieldB.png": {
+      "source": "icons/status/highlight_whiteshieldB.png",
+      "width": 148,
+      "height": 148
+    },
+    "shade_redshield.png": {
+      "source": "icons/status/highlight_redshield.png",
+      "width": 148,
+      "height": 148
+    }
+  },
+  "icons": {
+    "sword_blue.png": {
+      "source": "icons/mouseover/attack_big_blue.png",
+      "width": 461,
+      "height": 461
+    },
+    "icon_defend.png": {
+      "source": "icons/status/icon_defend.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_clock.png": {
+      "source": "icons/status/clock.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_hp.png": {
+      "source": "icons/status/status_hp.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_undefendable.png": {
+      "source": "icons/status/status_undefendable.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_delay.png": {
+      "source": "icons/status/status_delay.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_doom.png": {
+      "source": "icons/status/status_doom.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_charge0.png": {
+      "source": "icons/status/status_charge0.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_charge1.png": {
+      "source": "icons/status/status_charge1.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_charge2.png": {
+      "source": "icons/status/status_charge2.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_charge3.png": {
+      "source": "icons/status/status_charge3.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_tap.png": {
+      "source": "icons/status/status_tap.png",
+      "width": 32,
+      "height": 32
+    },
+    "icon_attack.png": {
+      "source": "icons/status/icon_attack.png",
+      "width": 16,
+      "height": 16
+    }
+  },
+  "effects": {
+    "chill_snowflake.png": {
+      "source": "cardbg/Card_Chilled.png",
+      "width": 148,
+      "height": 148
+    }
+  }
+}

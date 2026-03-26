@@ -11,7 +11,7 @@ extends Camera3D
 # Orthographic size = visible half-height in world units.
 # SWF board: rows span from -2.518 to +2.518 (5.036 total) + card half-height (0.494).
 # Total needed: ~6.03 world-units. Add padding → ~3.5 half-height.
-@export var ortho_size: float = 3.8
+@export var ortho_size: float = 5.0
 @export var min_ortho_size: float = 1.5
 @export var max_ortho_size: float = 8.0
 @export var zoom_speed: float = 0.3
