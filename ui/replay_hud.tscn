@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://replay_hud"]
+[gd_scene load_steps=3 format=3 uid="uid://replay_hud"]
 
 [ext_resource type="Script" path="res://ui/replay_hud.gd" id="1"]
+[ext_resource type="Script" path="res://ui/buy_panel.gd" id="2"]
 
 [node name="ReplayHUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -21,6 +22,22 @@ size_flags_horizontal = 4
 horizontal_alignment = 1
 text = "Turn 0 — P0 Action"
 theme_override_font_sizes/font_size = 18
+
+[node name="BuyPanel" type="HBoxContainer" parent="."]
+script = ExtResource("2")
+anchors_preset = 5
+anchor_left = 0.5
+anchor_top = 0.0
+anchor_right = 0.5
+anchor_bottom = 0.0
+offset_left = -480.0
+offset_top = 36.0
+offset_right = 480.0
+offset_bottom = 136.0
+grow_horizontal = 2
+grow_vertical = 1
+alignment = 1
+theme_override_constants/separation = 4
 
 [node name="BottomPanel" type="VBoxContainer" parent="."]
 anchors_preset = 7

@@ -10,6 +10,7 @@ extends CanvasLayer
 @onready var seq_label: Label = $BottomPanel/Controls/SeqLabel
 @onready var p0_resources: VBoxContainer = $P0Resources
 @onready var p1_resources: VBoxContainer = $P1Resources
+@onready var buy_panel: BuyPanel = $BuyPanel
 
 var _replay: ReplayController
 var _scrubbing: bool = false
@@ -40,6 +41,10 @@ func _on_snapshot_changed(_prev: Variant, current: Variant, _transition_type: St
 	# Update resource bars
 	_update_resources(p0_resources, current["players"][0]["resources"])
 	_update_resources(p1_resources, current["players"][1]["resources"])
+
+	# Show buy panel on first snapshot with deck info
+	if current.has("deckInfo") and current["deckInfo"] is Array:
+		buy_panel.show_deck(current["deckInfo"])
 
 func _update_resources(container: VBoxContainer, resources: Dictionary) -> void:
 	var labels = container.get_children()
