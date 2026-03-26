@@ -34,7 +34,11 @@ func _ready():
 
 	# Now connect provider and load — all listeners are ready
 	_replay.init(provider)
-	provider.load_file("res://data/test_match.json")
+	# Load current_replay.json if available, otherwise fall back to test fixture
+	if FileAccess.file_exists("res://data/current_replay.json"):
+		provider.load_file("res://data/current_replay.json")
+	else:
+		provider.load_file("res://data/test_match.json")
 
 func _on_snapshot_changed(prev: Variant, current: Variant, transition_type: String):
 	_battlefield.apply_snapshot(prev, current, transition_type)
