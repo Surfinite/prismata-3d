@@ -69,3 +69,45 @@ The **SWF client** (original Prismata Flash app) is the visual ground truth, not
 - P0 (blue) = bottom of screen, P1 (red) = top — matches SWF convention
 - All 143 card sprites are in `assets/card_sprites/` as `snake_case.png`
 - Background textures are in `assets/backgrounds/` — named by visual state (busy, block, dead, etc.)
+
+## For homander
+
+Welcome! Here's context to help you and Claude work effectively:
+
+### Your role
+You own **3D models, visual design, and battlefield aesthetics**. Your work lives in `visual/` and `assets/`. The replay engine, data pipeline, and card rendering are Surfinite's domain — ask before modifying files outside your areas.
+
+### Vision
+The long-term goal is a full 3D battlefield viewer — units as 3D models on terrain, resource tanks (gold/green/red/blue), RTS-style camera, cinematic breach animations. Start with replacing 2D sprites with 3D models one unit at a time.
+
+### What Prismata units look like
+- Browse unit art at: `assets/card_sprites/` (143 PNGs of every unit)
+- Unit data (names, stats, costs): `c:\libraries\PrismataAI\bin\asset\config\cardLibrary.jso`
+- The Prismata wiki has lore and high-res art: https://prismata.fandom.com/wiki/
+- Start with **Drone** — it's the most common unit (every game has 6+ of them)
+
+### Working with 3D models
+- Godot 4 imports `.glb` (preferred), `.gltf`, and `.obj` files natively — just drop them in `assets/`
+- Blender exports to `.glb` via File → Export → glTF 2.0
+- For STL files (like Blossom_Manifold.stl): import into Blender first, then export as `.glb`
+- Keep models low-poly — there can be 30+ units on screen at once
+
+### Superpowers (Claude Code skills)
+This project uses **superpowers** — special skills that make Claude much more effective. Key ones:
+- **`/brainstorming`** — use before any creative work (designing models, planning visuals). Explores intent before jumping to code.
+- **`/feature-dev`** — guided feature development with codebase understanding
+- **`/commit`** — commit your work cleanly
+- **`/status`** — see project status
+
+Type `/` in Claude Code to see all available skills.
+
+### Related docs (in the PrismataAI repo at `c:\libraries\PrismataAI\`)
+- Godot viewer spec: `docs/superpowers/specs/2026-03-26-godot-3d-battlefield-viewer-design.md`
+- Visual parity plan: `docs/superpowers/plans/2026-03-26-godot-visual-parity-phase1.md`
+- Unit reference: `docs/wiki/PRISMATA_REFERENCE.md`
+- Strategy guide (game knowledge): `docs/prismata-strategy-guide.md`
+
+### Quick start tasks
+1. Open the Godot project, press F5, see the 2D replay viewer working
+2. Create a simple 3D Drone model (or find one) and put it in `assets/models/`
+3. Ask Claude to help you write a script that replaces the Drone sprite with your 3D model
