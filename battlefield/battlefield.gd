@@ -9,7 +9,8 @@ const ROW_Z = {
 	"middle": 3.5,
 	"back": 5.5
 }
-const ROW_SPACING_X = 1.2
+# Total width available for each row in world units
+const ROW_WIDTH = 20.0
 
 var _unit_registry: Dictionary = {}   # unitId (int) -> UnitNode
 var _prev_positions: Dictionary = {}  # unitId (int) -> Vector3
@@ -67,66 +68,95 @@ func _reconcile(snapshot: Variant) -> void:
 		_unit_registry[unit_id].queue_free()
 		_unit_registry.erase(unit_id)
 
-	# Group units by (owner, slot) to spread stacked units
-	# Key = "owner_slot", Value = array of unit_ids
-	var slot_groups: Dictionary = {}
-	for unit_id in current_units:
-		var info = current_units[unit_id]
-		var owner = info["owner"]
-		var render = info["data"].get("render", {})
-		var slot = int(render.get("slot", 15))
-		var key = str(owner) + "_" + str(slot)
-		if not slot_groups.has(key):
-			slot_groups[key] = []
-		slot_groups[key].append(unit_id)
+	# === SWF-faithful layout pipeline ===
+	# 1. Group units by (owner, row) → then by cardId into "piles"
+	# 2. Sort piles by slot position (left-to-right)
+	# 3. Run cramming algorithm to compute pile X positions
+	# 4. Within each pile, space cards by the computed gap
 
-	# Spawn or update units with spread positioning
-	for key in slot_groups:
-		var group = slot_groups[key]
-		var group_size = group.size()
-		for idx in range(group_size):
-			var unit_id = group[idx]
+	for owner in range(2):
+		# Collect this player's units, grouped by row
+		var row_units: Dictionary = {"front": [], "middle": [], "back": []}
+		for unit_id in current_units:
 			var info = current_units[unit_id]
+			if info["owner"] != owner:
+				continue
 			var unit_data = info["data"]
-			var owner = info["owner"]
-			var pos = _calculate_position(unit_data, owner, idx, group_size)
+			var render = unit_data.get("render", {})
+			var row = str(render.get("row", "middle"))
+			if not row_units.has(row):
+				row_units[row] = []
+			row_units[row].append({"unit_id": unit_id, "data": unit_data})
 
-			if _unit_registry.has(unit_id):
-				var node = _unit_registry[unit_id]
-				node.update_state(unit_data)
-				node.position = pos
-			else:
-				var node = UNIT_NODE_SCENE.instantiate() as UnitNode
-				add_child(node)
-				node.setup(unit_data)
-				node.update_state(unit_data)
-				node.position = pos
-				_unit_registry[unit_id] = node
+		for row in row_units:
+			var units_in_row = row_units[row]
+			if units_in_row.is_empty():
+				continue
 
-const UNIT_SPREAD_X = 0.9  # spacing between stacked units within a slot group
+			# Group by cardId into piles
+			var piles: Dictionary = {}  # cardId -> array of {unit_id, data}
+			var pile_slots: Dictionary = {}  # cardId -> slot (for sorting)
+			for entry in units_in_row:
+				var card_id = str(entry["data"].get("cardId", "unknown"))
+				if not piles.has(card_id):
+					piles[card_id] = []
+					var render = entry["data"].get("render", {})
+					pile_slots[card_id] = int(render.get("slot", 15))
+				piles[card_id].append(entry)
 
-func _calculate_position(unit_data: Dictionary, owner: int, index_in_group: int = 0, group_size: int = 1) -> Vector3:
-	var render = unit_data.get("render", {})
-	var row = str(render.get("row", "middle"))
-	var slot = int(render.get("slot", 15))
+			# Sort pile keys by slot position (left-to-right)
+			var sorted_pile_keys = piles.keys()
+			sorted_pile_keys.sort_custom(func(a, b): return pile_slots[a] < pile_slots[b])
 
-	var z_offset = ROW_Z.get(row, 3.5)
-	# Player 0 (blue) = south (positive Z), Player 1 (red) = north (negative Z)
-	if owner == 1:
-		z_offset = -z_offset
+			# Build pile counts for layout engine
+			var pile_counts: Array = []
+			for key in sorted_pile_keys:
+				pile_counts.append(piles[key].size())
 
-	# Base X position from slot column
-	var slot_in_row = slot % 10
-	var base_x = (slot_in_row - 4.5) * ROW_SPACING_X
+			# Run cramming algorithm
+			var layouts = LayoutEngine.compute_row_layout(pile_counts, ROW_WIDTH)
 
-	# Spread units within the same slot group
-	# Center the group around base_x
-	var spread_offset = 0.0
-	if group_size > 1:
-		var total_width = (group_size - 1) * UNIT_SPREAD_X
-		spread_offset = -total_width / 2.0 + index_in_group * UNIT_SPREAD_X
+			# Position each unit
+			var z_offset = ROW_Z.get(row, 3.5)
+			if owner == 1:
+				z_offset = -z_offset
 
-	return Vector3(base_x + spread_offset, 0.5, z_offset)
+			for pile_idx in range(sorted_pile_keys.size()):
+				var card_id = sorted_pile_keys[pile_idx]
+				var pile_units = piles[card_id]
+				var layout = layouts[pile_idx]
+				var gap = layout.gap
+
+				# Sort within pile: under_construction first (left), then ready (right)
+				pile_units.sort_custom(func(a, b):
+					var a_bt = int(a["data"].get("state", {}).get("buildTurnsRemaining", 0))
+					var b_bt = int(b["data"].get("state", {}).get("buildTurnsRemaining", 0))
+					return a_bt > b_bt  # higher buildTurns = more left
+				)
+
+				for card_idx in range(pile_units.size()):
+					var entry = pile_units[card_idx]
+					var unit_id = entry["unit_id"]
+					var unit_data = entry["data"]
+
+					# X position: pile start + card offset within pile
+					var x_pos = layout.x + card_idx * gap
+					# Center the row around X=0 (layout gives positions from 0)
+					var centered_x = x_pos - ROW_WIDTH / 2.0
+
+					var pos = Vector3(centered_x, 0.5, z_offset)
+
+					if _unit_registry.has(unit_id):
+						var node = _unit_registry[unit_id]
+						node.update_state(unit_data)
+						node.position = pos
+					else:
+						var node = UNIT_NODE_SCENE.instantiate() as UnitNode
+						add_child(node)
+						node.setup(unit_data)
+						node.update_state(unit_data)
+						node.position = pos
+						_unit_registry[unit_id] = node
 
 func get_unit_node(unit_id: int) -> UnitNode:
 	return _unit_registry.get(unit_id)
