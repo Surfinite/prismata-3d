@@ -67,26 +67,45 @@ func _reconcile(snapshot: Variant) -> void:
 		_unit_registry[unit_id].queue_free()
 		_unit_registry.erase(unit_id)
 
-	# Spawn or update units
+	# Group units by (owner, slot) to spread stacked units
+	# Key = "owner_slot", Value = array of unit_ids
+	var slot_groups: Dictionary = {}
 	for unit_id in current_units:
 		var info = current_units[unit_id]
-		var unit_data = info["data"]
 		var owner = info["owner"]
-		var pos = _calculate_position(unit_data, owner)
+		var render = info["data"].get("render", {})
+		var slot = int(render.get("slot", 15))
+		var key = str(owner) + "_" + str(slot)
+		if not slot_groups.has(key):
+			slot_groups[key] = []
+		slot_groups[key].append(unit_id)
 
-		if _unit_registry.has(unit_id):
-			var node = _unit_registry[unit_id]
-			node.update_state(unit_data)
-			node.position = pos
-		else:
-			var node = UNIT_NODE_SCENE.instantiate() as UnitNode
-			add_child(node)
-			node.setup(unit_data)
-			node.update_state(unit_data)
-			node.position = pos
-			_unit_registry[unit_id] = node
+	# Spawn or update units with spread positioning
+	for key in slot_groups:
+		var group = slot_groups[key]
+		var group_size = group.size()
+		for idx in range(group_size):
+			var unit_id = group[idx]
+			var info = current_units[unit_id]
+			var unit_data = info["data"]
+			var owner = info["owner"]
+			var pos = _calculate_position(unit_data, owner, idx, group_size)
 
-func _calculate_position(unit_data: Dictionary, owner: int) -> Vector3:
+			if _unit_registry.has(unit_id):
+				var node = _unit_registry[unit_id]
+				node.update_state(unit_data)
+				node.position = pos
+			else:
+				var node = UNIT_NODE_SCENE.instantiate() as UnitNode
+				add_child(node)
+				node.setup(unit_data)
+				node.update_state(unit_data)
+				node.position = pos
+				_unit_registry[unit_id] = node
+
+const UNIT_SPREAD_X = 0.9  # spacing between stacked units within a slot group
+
+func _calculate_position(unit_data: Dictionary, owner: int, index_in_group: int = 0, group_size: int = 1) -> Vector3:
 	var render = unit_data.get("render", {})
 	var row = str(render.get("row", "middle"))
 	var slot = int(render.get("slot", 15))
@@ -96,11 +115,18 @@ func _calculate_position(unit_data: Dictionary, owner: int) -> Vector3:
 	if owner == 1:
 		z_offset = -z_offset
 
-	# X position from slot within row (slots 0-9 for each row band)
+	# Base X position from slot column
 	var slot_in_row = slot % 10
-	var x_pos = (slot_in_row - 4.5) * ROW_SPACING_X
+	var base_x = (slot_in_row - 4.5) * ROW_SPACING_X
 
-	return Vector3(x_pos, 0.5, z_offset)
+	# Spread units within the same slot group
+	# Center the group around base_x
+	var spread_offset = 0.0
+	if group_size > 1:
+		var total_width = (group_size - 1) * UNIT_SPREAD_X
+		spread_offset = -total_width / 2.0 + index_in_group * UNIT_SPREAD_X
+
+	return Vector3(base_x + spread_offset, 0.5, z_offset)
 
 func get_unit_node(unit_id: int) -> UnitNode:
 	return _unit_registry.get(unit_id)
