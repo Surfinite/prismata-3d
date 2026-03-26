@@ -16,6 +16,15 @@ func _ready():
 
 	provider.load_file("res://data/test_match.json")
 
+	var hooks = VisualHooks.new()
+	var buy_hook = BuyHook.new()
+	hooks.register("buy", buy_hook.handle_event)
+	var kill_hook = KillHook.new()
+	hooks.register("kill", kill_hook.handle_event)
+	hooks.register("sacrifice", kill_hook.handle_event)
+	hooks.register("breach_kill", kill_hook.handle_event)
+	_battlefield.set_visual_hooks(hooks)
+
 func _on_snapshot_changed(prev: Variant, current: Variant, transition_type: String):
 	_battlefield.apply_snapshot(prev, current, transition_type)
 
