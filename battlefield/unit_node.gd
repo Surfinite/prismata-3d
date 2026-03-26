@@ -35,6 +35,9 @@ var _defense_label: Label3D
 # Each entry: { "icon": Sprite3D, "label": Label3D, "key": String }
 var _var_icons: Array = []  # order: hp, frontline, delay, doom, charge, chill
 
+# 3D model override (replaces 2D card layers for specific units)
+var _model_instance: MeshInstance3D
+
 # Snowflake effect sprite
 var _snowflake: Sprite3D
 
@@ -186,6 +189,10 @@ func setup(unit_data: Dictionary, p_owner: int) -> void:
 		var tex_width = tex.get_width()
 		if tex_width > 0:
 			_card_skin.pixel_size = 0.878 / float(tex_width)
+
+	# 3D model override for drone
+	if card_id == "drone":
+		_try_load_3d_model("res://assets/models/blossom.obj")
 
 	# Optional name label (hidden by default)
 	_name_label.text = unit_data.get("displayName", card_id)
@@ -353,3 +360,26 @@ func _apply_status_icons(vs: Dictionary) -> void:
 			icon_entry["label"].visible = true
 		else:
 			icon_entry["label"].visible = false
+
+
+func _try_load_3d_model(path: String) -> void:
+	print("DEBUG: trying to load model at ", path)
+	print("DEBUG: exists=", ResourceLoader.exists(path))
+	if not ResourceLoader.exists(path):
+		return
+	var mesh = load(path)
+	print("DEBUG: loaded=", mesh, " type=", type_string(typeof(mesh)))
+	if not mesh is Mesh:
+		return
+	_model_instance = MeshInstance3D.new()
+	_model_instance.mesh = mesh
+	# Scale to fit roughly one card width (1.0 world unit)
+	_model_instance.scale = Vector3(0.01, 0.01, 0.01)
+	_model_instance.position = Vector3(0, 0.05, 0)
+	_model_instance.rotation_degrees = Vector3(-90, 0, 0)
+	add_child(_model_instance)
+	# Hide the 2D card layers
+	_bg_frame.visible = false
+	_card_skin.visible = false
+	_cover_overlay.visible = false
+	_shading_overlay.visible = false
