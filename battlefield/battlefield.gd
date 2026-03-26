@@ -3,14 +3,18 @@ extends Node3D
 
 const UNIT_NODE_SCENE = preload("res://battlefield/unit_node.tscn")
 
-# Row Z positions (distance from center line)
+# Row Z positions — SWF-faithful card-center distances from center divider.
+# SWF: gutter=2px, row_gap=1px, CARD_HEIGHT=82px, CARD_WIDTH=83px.
+# Card center Y = (gutter + row_index*(CARD_HEIGHT+row_gap) + CARD_HEIGHT/2) / CARD_WIDTH
+# Result: rows are exactly 1.0 card-width apart, starting at 0.518 from center.
 const ROW_Z = {
-	"front": 1.5,
-	"middle": 3.5,
-	"back": 5.5
+	"front": 0.518,
+	"middle": 1.518,
+	"back": 2.518
 }
-# Total width available for each row in world units
-const ROW_WIDTH = 20.0
+# Total width for each row — SWF field ≈ 820px (960 stage - 140 buy panel) = 9.88 card-widths.
+# Use 10.0 for a clean round number; cramming algorithm adapts automatically.
+const ROW_WIDTH = 10.0
 
 var _unit_registry: Dictionary = {}   # unitId (int) -> UnitNode
 var _prev_positions: Dictionary = {}  # unitId (int) -> Vector3
