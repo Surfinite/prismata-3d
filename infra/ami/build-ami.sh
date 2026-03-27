@@ -3,8 +3,8 @@
 # Build the Prismata 3D Gen AMI.
 #
 # This script:
-# 1. Launches a temporary g5.xlarge from stock Ubuntu 22.04
-# 2. Installs NVIDIA drivers, reboots, then installs ComfyUI + Hunyuan3D
+# 1. Launches a temporary g5.xlarge from AWS Deep Learning Base AMI (NVIDIA drivers pre-installed)
+# 2. Installs CUDA toolkit + ComfyUI + Hunyuan3D (no reboot needed)
 # 3. Runs smoke tests, creates AMI, terminates build instance
 #
 # Usage: bash infra/ami/build-ami.sh
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 REGION="us-east-1"
-BASE_AMI="ami-00de3875b03809ec5"          # Ubuntu 22.04 amd64 (us-east-1)
+BASE_AMI="ami-049ed450c1d8ab10e"          # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04) 20260324
 INSTANCE_TYPE="g5.xlarge"
 KEY_NAME="prismata-spectator"              # EC2 key pair name
 SECURITY_GROUP="sg-0fdc130ad1d5dc373"      # prismata-3d-gen security group
@@ -95,20 +95,11 @@ for f in install-nvidia.sh install-comfyui.sh install-assets.sh comfyui.service 
     $SCP "$SCRIPT_DIR/$f" "ubuntu@$BUILD_IP:/tmp/"
 done
 
-# Phase 1: NVIDIA drivers (requires reboot before GPU is usable)
-echo "--- Installing NVIDIA drivers + CUDA (~10 min) ---"
+# Verify NVIDIA drivers (pre-installed in Deep Learning AMI) + install CUDA toolkit
+echo "--- Verifying NVIDIA + installing CUDA toolkit (~5 min) ---"
 $SSH "sudo bash /tmp/install-nvidia.sh"
 
-echo "--- Rebooting to load NVIDIA kernel module ---"
-$SSH "sudo reboot" || true
-sleep 30
-wait_for_ssh
-
-# Verify GPU is live after reboot
-echo "--- Verifying GPU ---"
-$SSH "nvidia-smi"
-
-# Phase 2: ComfyUI + Hunyuan3D (needs working GPU for CUDA extension compilation)
+# Install ComfyUI + Hunyuan3D (GPU already available, no reboot needed)
 echo "--- Installing ComfyUI + Hunyuan3D (~30-40 min, includes ~20GB model download) ---"
 $SSH "sudo bash /tmp/install-comfyui.sh"
 
