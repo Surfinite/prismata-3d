@@ -81,6 +81,23 @@ def main():
         for u in missing_regular[:10]:
             print(f"  - {u}")
 
+    # Step 4: Upload to S3
+    print(f"\n{'=' * 60}")
+    print(f"Step 4: Uploading to S3")
+    print(f"{'=' * 60}")
+    import subprocess
+    bucket = "s3://prismata-3d-models/asset-prep/"
+    result = subprocess.run(
+        ["aws", "s3", "sync", output_dir, bucket, "--region", "us-east-1"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        print(f"  -> Uploaded to {bucket}")
+    else:
+        print(f"  -> S3 upload failed (non-fatal): {result.stderr[:200]}")
+        print(f"     You can manually sync later: aws s3 sync {output_dir} {bucket}")
+
     return 0
 
 
