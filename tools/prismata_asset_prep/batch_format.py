@@ -4,7 +4,7 @@ Parser for Prismata .skin and .batch archive format.
 Format:
   [4 bytes] num_files (uint32 LE)
   [repeat num_files]:
-    [64 bytes] filename (ASCII, space-padded)
+    [60 bytes] filename (ASCII, space-padded)
     [4 bytes]  file_size (uint32 LE)
   [concatenated file data in entry order]
 """
@@ -29,9 +29,9 @@ def parse_batch_archive(data: bytes) -> list[ArchiveEntry]:
     offset = 4
     toc: list[tuple[str, int]] = []
     for _ in range(num_files):
-        raw_name = data[offset : offset + 64]
+        raw_name = data[offset : offset + 60]
         name = raw_name.split(b"\x00")[0].rstrip(b" ").decode("ascii", errors="replace")
-        offset += 64
+        offset += 60
         size = struct.unpack_from("<I", data, offset)[0]
         offset += 4
         toc.append((name, size))

@@ -12,7 +12,7 @@ def _make_archive(files: dict[str, bytes]) -> bytes:
     body = b""
     for name, data in files.items():
         name_bytes = name.encode("ascii")
-        padded = name_bytes.ljust(64, b" ")
+        padded = name_bytes.ljust(60, b" ")
         toc += padded + struct.pack("<I", len(data))
         body += data
     return header + toc + body
