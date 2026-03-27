@@ -45,7 +45,7 @@ INSTANCE_ID=$(aws ec2 run-instances \
     --key-name "$KEY_NAME" \
     --security-group-ids "$SECURITY_GROUP" \
     --iam-instance-profile Name="$INSTANCE_PROFILE" \
-    --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":100,"VolumeType":"gp3"}}]' \
+    --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":150,"VolumeType":"gp3"}}]' \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=ami-build-prismata-3d},{Key=Project,Value=prismata-3d-gen}]" \
     --query "Instances[0].InstanceId" \
     --output text \
