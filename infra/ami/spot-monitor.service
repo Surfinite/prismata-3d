@@ -1,0 +1,13 @@
+[Unit]
+Description=Prismata 3D Gen Spot Monitor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/prismata-3d/spot-monitor.sh
+Environment=DISCORD_WEBHOOK_URL=
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

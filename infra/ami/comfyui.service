@@ -1,0 +1,22 @@
+[Unit]
+Description=ComfyUI - Hunyuan3D Generation Server
+After=network.target
+
+[Service]
+Type=simple
+User=comfyui
+Group=comfyui
+WorkingDirectory=/opt/comfyui
+ExecStart=/opt/comfyui-env/bin/python main.py --listen 0.0.0.0 --port 8188 --preview-method auto
+Environment=PYTHONUNBUFFERED=1
+Environment=HOME=/opt/comfyui-home
+Environment=PATH=/usr/local/cuda-12.4/bin:/usr/local/bin:/usr/bin:/bin
+Environment=LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64
+Restart=always
+RestartSec=5
+
+# Give it time to load models into VRAM
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Prismata 3D Gen Idle Watchdog
+After=comfyui.service
+
+[Service]
+Type=simple
+ExecStart=/opt/prismata-3d/idle-watchdog.sh
+Environment=DISCORD_WEBHOOK_URL=
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
