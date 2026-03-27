@@ -118,10 +118,32 @@ You can use AI to generate 3D models from the 2D card sprites. Several approache
 - [3D AI Studio](https://www.3daistudio.com/UseCases/Godot) — specifically targets Godot, outputs GLB with PBR materials.
 
 **Claude + Blender MCP (most powerful — Claude controls Blender directly):**
-- Install [Blender MCP](https://github.com/ahujasid/blender-mcp) addon in Blender
-- Claude can then create, modify, texture 3D models via natural language
-- Guide: [How to Connect Claude AI to Blender](https://medium.com/@gizmo.codes/how-to-connect-claude-ai-to-blender-a-practical-guide-for-3d-artists-b96c141cd97c)
-- This lets you say things like "make a small robot drone with propellers" and Claude builds it in Blender
+
+The MCP server is already configured in `.mcp.json`. You just need the Blender addon:
+
+1. **One-time setup — install `uv`** (Python package runner, needed for the MCP server):
+   ```powershell
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+   Then restart your terminal so `uvx` is on PATH.
+
+2. **One-time setup — install the Blender addon:**
+   - Download `addon.py` from [github.com/ahujasid/blender-mcp](https://github.com/ahujasid/blender-mcp)
+   - Blender → Edit → Preferences → Add-ons → Install → select `addon.py`
+   - Enable "MCP Blender Bridge"
+
+3. **Each session:**
+   - Open Blender, press `N` for sidebar, click "Connect" in the MCP panel
+   - Start Claude Code in this project — it sees the Blender tools automatically
+
+4. **Use it:**
+   - "Create a low-poly drone with 4 propellers and a glowing eye"
+   - "Import assets/card_sprites/drone.png as reference and model something similar"
+   - "Apply a metallic blue material"
+   - "Reduce to under 5000 triangles"
+   - "Export as GLB to assets/models/drone.glb"
+
+Guide: [How to Connect Claude AI to Blender](https://medium.com/@gizmo.codes/how-to-connect-claude-ai-to-blender-a-practical-guide-for-3d-artists-b96c141cd97c)
 
 **Manual Blender workflow:**
 - Import card sprite as reference image in Blender
