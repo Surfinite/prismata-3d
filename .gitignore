@@ -10,3 +10,10 @@ desktop.ini
 
 # Generated assets (pipeline output)
 generated/
+
+# Python
+__pycache__/
+*.pyc
+
+# Claude Code local settings
+.claude/settings.local.json
