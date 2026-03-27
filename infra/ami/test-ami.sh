@@ -10,11 +10,13 @@ FAIL=0
 check() {
     local desc="$1"
     shift
-    if "$@" > /dev/null 2>&1; then
+    local output
+    if output=$("$@" 2>&1); then
         echo "  PASS: $desc"
         ((PASS++))
     else
         echo "  FAIL: $desc"
+        echo "        $output" | head -3
         ((FAIL++))
     fi
 }
