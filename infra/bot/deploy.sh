@@ -7,13 +7,10 @@
 
 set -euo pipefail
 
-SSH_HOST="${1:-}"
-
-if [ -z "$SSH_HOST" ]; then
-    echo "Usage: bash deploy.sh <ssh-host>"
-    echo "Example: bash deploy.sh ubuntu@1.2.3.4"
-    exit 1
-fi
+SSH_KEY="$HOME/.ssh/<SSH_KEY>.pem"
+SSH_HOST="ubuntu@<DATA_BOX_PUBLIC_IP>"
+SSH="ssh -i $SSH_KEY $SSH_HOST"
+SCP="scp -i $SSH_KEY"
 
 REMOTE_DIR="/opt/prismata-3d-bot"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -24,32 +21,28 @@ echo "Remote dir: $REMOTE_DIR"
 echo ""
 
 # Create remote directory
-ssh "$SSH_HOST" "sudo mkdir -p $REMOTE_DIR && sudo chown \$(whoami) $REMOTE_DIR"
+$SSH "sudo mkdir -p $REMOTE_DIR && sudo chown \$(whoami) $REMOTE_DIR"
 
-# Sync bot files
-rsync -avz \
-    "$SCRIPT_DIR/bot.py" \
-    "$SCRIPT_DIR/ec2_manager.py" \
-    "$SCRIPT_DIR/config.py" \
-    "$SCRIPT_DIR/requirements.txt" \
-    "$SSH_HOST:$REMOTE_DIR/"
+# Copy bot files
+for f in bot.py ec2_manager.py config.py requirements.txt; do
+    $SCP "$SCRIPT_DIR/$f" "$SSH_HOST:$REMOTE_DIR/"
+done
 
-# Install dependencies
-ssh "$SSH_HOST" "cd $REMOTE_DIR && pip3 install -r requirements.txt"
+# Install dependencies in venv
+$SSH "cd $REMOTE_DIR && python3 -m venv venv && ./venv/bin/pip install -q -r requirements.txt"
 
 # Create systemd service
-REMOTE_USER=$(ssh "$SSH_HOST" "whoami")
-ssh "$SSH_HOST" "sudo tee /etc/systemd/system/prismata-3d-bot.service > /dev/null" <<EOF
+$SSH "sudo tee /etc/systemd/system/prismata-3d-bot.service > /dev/null" <<EOF
 [Unit]
 Description=Prismata 3D Generation Discord Bot
 After=network.target
 
 [Service]
 Type=simple
-User=$REMOTE_USER
+User=ubuntu
 WorkingDirectory=$REMOTE_DIR
-ExecStart=/usr/bin/python3 $REMOTE_DIR/bot.py
-EnvironmentFile=-/etc/prismata-3d-bot.env
+ExecStart=$REMOTE_DIR/venv/bin/python $REMOTE_DIR/bot.py
+EnvironmentFile=/etc/prismata-3d-bot.env
 Restart=always
 RestartSec=10
 
@@ -57,16 +50,9 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
+# Reload and restart
+$SSH "sudo systemctl daemon-reload && sudo systemctl enable prismata-3d-bot && sudo systemctl restart prismata-3d-bot"
+
+sleep 3
 echo ""
-echo "=== Deployment complete ==="
-echo ""
-echo "Next steps on the server:"
-echo "  1. Create /etc/prismata-3d-bot.env with:"
-echo "     DISCORD_TOKEN=your_bot_token_here"
-echo "     AWS_REGION=us-east-1"
-echo "  2. Start the bot:"
-echo "     sudo systemctl daemon-reload"
-echo "     sudo systemctl enable prismata-3d-bot"
-echo "     sudo systemctl start prismata-3d-bot"
-echo "  3. Check logs:"
-echo "     journalctl -u prismata-3d-bot -f"
+$SSH "sudo systemctl status prismata-3d-bot --no-pager"
