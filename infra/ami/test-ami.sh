@@ -37,9 +37,8 @@ check "ComfyUI directory exists" test -d /opt/comfyui
 check "ComfyUI main.py exists" test -f /opt/comfyui/main.py
 check "Hunyuan3D wrapper installed" test -d /opt/comfyui/custom_nodes/ComfyUI-Hunyuan3DWrapper
 
-# Model weights
+# Model weights (only shape model is pre-downloaded; paint model auto-downloads at runtime)
 check "Shape model present" test -d /opt/comfyui/models/diffusion_models/hunyuan3d
-check "Model cache present" test -d /opt/comfyui/models/hunyuan3d-cache
 
 # Assets
 check "Asset manifest present" test -f /opt/prismata-3d/assets/manifest.json

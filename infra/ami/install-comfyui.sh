@@ -53,7 +53,9 @@ cd ../../..
 # Install extra mesh processing deps
 pip install --no-cache-dir -r requirements_extras.txt || echo "Some extras failed — non-critical"
 
-# Pre-download model weights via HuggingFace (~20-30GB, takes 10-20 min)
+# Pre-download the shape model weights only (~2GB).
+# The texture/paint models auto-download on first generation via the wrapper.
+# Skipping the full tencent/Hunyuan3D-2 repo (~30GB) to avoid filling the disk.
 pip install --no-cache-dir huggingface_hub
 
 python3 -c "
@@ -62,24 +64,14 @@ import os
 
 models_dir = '$COMFYUI_DIR/models'
 
-# Hunyuan3D shape models (safetensors format for ComfyUI)
+# Hunyuan3D shape model (safetensors format, ~2GB)
 snapshot_download(
     'Kijai/Hunyuan3D-2_safetensors',
     local_dir=os.path.join(models_dir, 'diffusion_models', 'hunyuan3d'),
-    local_dir_use_symlinks=False
 )
 
-# Texture paint model + other components (auto-download at runtime,
-# but pre-caching avoids first-run delay for the user)
-snapshot_download(
-    'tencent/Hunyuan3D-2',
-    local_dir=os.path.join(models_dir, 'hunyuan3d-cache'),
-    local_dir_use_symlinks=False,
-    allow_patterns=['*.json', '*.txt', '*.safetensors', '*.bin'],
-    ignore_patterns=['*.md', '*.git*', 'assets/*']
-)
-
-print('Model weights downloaded successfully')
+print('Shape model downloaded successfully')
+print('Note: texture/paint models will auto-download on first generation (~5 min one-time delay)')
 "
 
 # Create service user with a home dir (HuggingFace cache writes to ~/.cache)
