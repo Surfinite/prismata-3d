@@ -1377,16 +1377,40 @@ async function startGeneration() {
       "inputs": { "model": paintModelSelect.value }
     };
 
+    // Render multiview normals/positions from UV-wrapped mesh
+    const renderMvId = String(nextNodeId++);
+    workflow[renderMvId] = {
+      "class_type": "Hy3DRenderMultiView",
+      "inputs": {
+        "trimesh": [uvWrapId, 0],
+        "render_size": 1024,
+        "texture_size": 1024
+      }
+    };
+    // Outputs: [0]=normal_maps, [1]=position_maps, [2]=renderer, [3]=mask
+
+    // Generate multiview images using paint model
+    const sampleMvId = String(nextNodeId++);
+    workflow[sampleMvId] = {
+      "class_type": "Hy3DSampleMultiView",
+      "inputs": {
+        "pipeline": [paintModelId, 0],
+        "ref_image": [loadImageId, 0],
+        "normal_maps": [renderMvId, 0],
+        "position_maps": [renderMvId, 1],
+        "view_size": 512,
+        "steps": 30,
+        "seed": seed
+      }
+    };
+
     // Bake texture from multiview renders
-    // BakeFromMultiview takes the multiview_pipe, original image, and a renderer
-    // The renderer is created implicitly from the UV-wrapped mesh
     const bakeId = String(nextNodeId++);
     workflow[bakeId] = {
       "class_type": "Hy3DBakeFromMultiview",
       "inputs": {
-        "multiview_pipe": [paintModelId, 0],
-        "image": [loadImageId, 0],
-        "trimesh": [uvWrapId, 0]
+        "images": [sampleMvId, 0],
+        "renderer": [renderMvId, 2]
       }
     };
     // Outputs: [0]=texture, [1]=mask, [2]=renderer
@@ -1410,8 +1434,8 @@ async function startGeneration() {
       "inputs": {
         "texture": [vertInpaintId, 0],
         "mask": [vertInpaintId, 1],
-        "kernel_size": parseInt(cvKernelInput.value) || 3,
-        "method": cvMethodSelect.value
+        "inpaint_radius": parseInt(cvKernelInput.value) || 3,
+        "inpaint_method": cvMethodSelect.value
       }
     };
 
