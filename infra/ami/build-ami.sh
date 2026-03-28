@@ -91,7 +91,7 @@ SCP="scp -i $SSH_KEY"
 # Upload all install scripts + service files
 echo "--- Uploading install scripts ---"
 for f in install-nvidia.sh install-comfyui.sh install-assets.sh install-frontend.sh \
-         comfyui.service idle-watchdog.service spot-monitor.service test-ami.sh; do
+         comfyui.service idle-watchdog.service spot-monitor.service output-sync.service test-ami.sh; do
     $SCP "$SCRIPT_DIR/$f" "ubuntu@$BUILD_IP:/tmp/"
 done
 
@@ -111,7 +111,7 @@ $SSH "sudo bash /tmp/install-frontend.sh"
 
 # Install all systemd services (baked into AMI)
 echo "--- Installing systemd services ---"
-$SSH "sudo cp /tmp/comfyui.service /tmp/idle-watchdog.service /tmp/spot-monitor.service /etc/systemd/system/"
+$SSH "sudo cp /tmp/comfyui.service /tmp/idle-watchdog.service /tmp/spot-monitor.service /tmp/output-sync.service /etc/systemd/system/"
 $SSH "sudo systemctl daemon-reload && sudo systemctl enable comfyui"
 
 # Install cloudflared (wait for dpkg lock — unattended-upgrades may be running on fresh Ubuntu)
@@ -120,7 +120,7 @@ $SSH "sudo curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/
 
 # Copy monitoring scripts from S3 into AMI
 echo "--- Installing monitoring scripts ---"
-$SSH "sudo mkdir -p /opt/prismata-3d/output && sudo aws s3 cp s3://prismata-3d-models/scripts/idle-watchdog.sh /opt/prismata-3d/idle-watchdog.sh --region $REGION && sudo aws s3 cp s3://prismata-3d-models/scripts/spot-monitor.sh /opt/prismata-3d/spot-monitor.sh --region $REGION && sudo chmod +x /opt/prismata-3d/*.sh"
+$SSH "sudo mkdir -p /opt/prismata-3d/output && sudo aws s3 cp s3://prismata-3d-models/scripts/idle-watchdog.sh /opt/prismata-3d/idle-watchdog.sh --region $REGION && sudo aws s3 cp s3://prismata-3d-models/scripts/spot-monitor.sh /opt/prismata-3d/spot-monitor.sh --region $REGION && sudo aws s3 cp s3://prismata-3d-models/scripts/output-sync.sh /opt/prismata-3d/output-sync.sh --region $REGION && sudo chmod +x /opt/prismata-3d/*.sh"
 
 # Run smoke test
 echo "--- Running smoke test ---"

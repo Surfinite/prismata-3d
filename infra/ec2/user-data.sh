@@ -76,9 +76,10 @@ else
     echo "WARNING: Tunnel URL not captured after 30s"
 fi
 
-# 3. Start monitoring (services are baked into AMI, just start them)
+# 3. Start monitoring and output sync (services are baked into AMI, just start them)
 echo "--- Starting monitoring ---"
 systemctl start idle-watchdog
 systemctl start spot-monitor
+systemctl start output-sync
 
 echo "=== Boot complete $(date) ==="
