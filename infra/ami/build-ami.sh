@@ -90,8 +90,8 @@ SCP="scp -i $SSH_KEY"
 
 # Upload all install scripts + service files
 echo "--- Uploading install scripts ---"
-for f in install-nvidia.sh install-comfyui.sh install-assets.sh comfyui.service \
-         idle-watchdog.service spot-monitor.service test-ami.sh; do
+for f in install-nvidia.sh install-comfyui.sh install-assets.sh install-frontend.sh \
+         comfyui.service idle-watchdog.service spot-monitor.service test-ami.sh; do
     $SCP "$SCRIPT_DIR/$f" "ubuntu@$BUILD_IP:/tmp/"
 done
 
@@ -105,6 +105,9 @@ $SSH "sudo bash /tmp/install-comfyui.sh"
 
 echo "--- Installing asset data ---"
 $SSH "sudo bash /tmp/install-assets.sh"
+
+echo "--- Installing Fabrication Terminal frontend ---"
+$SSH "sudo bash /tmp/install-frontend.sh"
 
 # Install all systemd services (baked into AMI)
 echo "--- Installing systemd services ---"
