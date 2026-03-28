@@ -1124,6 +1124,7 @@ let currentExportNodeId = null;
 let pollInterval = null;
 let ws = null;
 let nodeStageMap = {}; // maps node ID → friendly stage name
+let currentOutputPrefix = null;
 let genStartTime = null;
 let elapsedInterval = null;
 let modelViewerEl = null;
@@ -1404,6 +1405,7 @@ async function startGeneration() {
   // Images are symlinked at /opt/comfyui/input/prismata-assets/units/...
   const comfyInputImage = `prismata-assets/${imagePath}`;
   const outputPrefix = `${unit}_${skin}_3d`;
+  currentOutputPrefix = outputPrefix;
 
   const steps = parseInt(stepsInput.value) || 20;
   const guidance = parseFloat(guidanceInput.value) || 5.5;
@@ -1719,10 +1721,17 @@ async function pollHistory() {
         setStatus('Fabrication complete', 'success');
         loadModel(glbFile);
       } else {
-        log('Generation completed but no GLB file found in outputs', 'error');
-        log('Raw outputs: ' + JSON.stringify(entry.outputs).substring(0, 500));
-        setGenerating(false);
-        setStatus('Complete — no GLB found (check log)', 'error');
+        // Hy3DExportMesh outputs a STRING path, not tracked in ComfyUI outputs.
+        // Scan the output directory for files matching our prefix.
+        const prefix = currentOutputPrefix;
+        if (prefix) {
+          log('Scanning output directory for ' + prefix + '...');
+          await findOutputFile(prefix);
+        } else {
+          log('Generation completed but no output file found', 'error');
+          setGenerating(false);
+          setStatus('Complete — no file found', 'error');
+        }
       }
     }
   } catch (err) {
@@ -1731,8 +1740,47 @@ async function pollHistory() {
   }
 }
 
-function loadModel(filename) {
-  const modelUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`;
+async function findOutputFile(prefix) {
+  // Hy3DExportMesh saves files as {prefix}_{00001}_.glb with incrementing counter.
+  // Try the most recent counter values (highest first).
+  const fmt = formatSelect.value || 'glb';
+  for (let i = 20; i >= 1; i--) {
+    const counter = String(i).padStart(5, '0');
+    const filename = `${prefix}_${counter}_.${fmt}`;
+    try {
+      const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
+      if (resp.ok) {
+        log('Found output: ' + filename, 'success');
+        setGenerating(false);
+        setStatus('Fabrication complete', 'success');
+        loadModel(filename);
+        return;
+      }
+    } catch {}
+  }
+  // Also try 3D/ subfolder (ComfyUI default prefix)
+  for (let i = 5; i >= 1; i--) {
+    const counter = String(i).padStart(5, '0');
+    const filename = `${prefix}_${counter}_.${fmt}`;
+    try {
+      const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`, { method: 'HEAD' });
+      if (resp.ok) {
+        log('Found output: 3D/' + filename, 'success');
+        setGenerating(false);
+        setStatus('Fabrication complete', 'success');
+        loadModel(filename, '3D');
+        return;
+      }
+    } catch {}
+  }
+  log('No output file found for prefix: ' + prefix, 'error');
+  setGenerating(false);
+  setStatus('Complete — file not found', 'error');
+}
+
+function loadModel(filename, subfolder) {
+  let modelUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`;
+  if (subfolder) modelUrl += `&subfolder=${encodeURIComponent(subfolder)}`;
 
   // Remove old model-viewer if present
   if (modelViewerEl) {
@@ -1799,6 +1847,7 @@ function setGenerating(active, msg) {
     stopElapsedTimer();
     currentPromptId = null;
     currentExportNodeId = null;
+    currentOutputPrefix = null;
   }
 }
 
