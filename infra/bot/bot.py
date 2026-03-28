@@ -222,9 +222,6 @@ async def status(ctx: commands.Context):
     import boto3
     ssm = boto3.client("ssm", region_name=AWS_REGION)
     for inst in instances:
-        cost = ec2.estimate_cost(inst)
-        lifecycle = inst.get("InstanceLifecycle", "on-demand")
-        await ctx.send(format_cost_estimate(cost, lifecycle))
         # Show tunnel URL if available
         iid = inst["InstanceId"]
         try:
