@@ -156,7 +156,7 @@ async def start(ctx: commands.Context, mode: str = "spot"):
             raise
     except Exception as e:
         error_msg = str(e)
-        if "InsufficientInstanceCapacity" in error_msg or "capacity" in error_msg.lower():
+        if "InsufficientInstanceCapacity" in error_msg or "capacity" in error_msg.lower() or "MaxSpotInstanceCount" in error_msg:
             msg = await ctx.send(
                 f"No spot capacity available in {AWS_REGION}.\n"
                 f"Launch on-demand instead? (~${ON_DEMAND_PRICE_ESTIMATE:.2f}/hr)\n"
