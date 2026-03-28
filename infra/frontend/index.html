@@ -1129,7 +1129,6 @@ const attentionSelect = $('attentionSelect');
 const numChunksInput = $('numChunksInput');
 const targetVertexInput = $('targetVertexInput');
 const postprocessToggle = $('postprocessToggle');
-const aggressiveDecimation = $('aggressiveDecimation');
 const formatSelect = $('formatSelect');
 const embedTextures = $('embedTextures');
 const textureToggle = $('textureToggle');
@@ -1231,8 +1230,11 @@ function updateSpritePreview() {
     return;
   }
   const path = manifest[unit][skin];
-  // Use ComfyUI's view API to serve sprites from input directory
-  spritePreview.src = `${API_BASE}/api/view?filename=${encodeURIComponent('prismata-assets/' + path)}&type=input`;
+  // Use ComfyUI's view API — needs subfolder param for nested paths
+  const parts = path.split('/');
+  const filename = parts.pop();
+  const subfolder = 'prismata-assets/' + parts.join('/');
+  spritePreview.src = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=input`;
   spritePreview.style.display = 'block';
   spritePlaceholder.style.display = 'none';
   btnGenerate.disabled = false;
@@ -1286,7 +1288,6 @@ async function startGeneration() {
   const attention = attentionSelect.value;
   const numChunks = parseInt(numChunksInput.value) || 8000;
   const doPostprocess = postprocessToggle.checked;
-  const doAggressive = aggressiveDecimation.checked;
   const targetVerts = parseInt(targetVertexInput.value) || 50000;
   const fileFormat = formatSelect.value;
 
