@@ -114,9 +114,9 @@ echo "--- Installing systemd services ---"
 $SSH "sudo cp /tmp/comfyui.service /tmp/idle-watchdog.service /tmp/spot-monitor.service /etc/systemd/system/"
 $SSH "sudo systemctl daemon-reload && sudo systemctl enable comfyui"
 
-# Install cloudflared
+# Install cloudflared (wait for dpkg lock — unattended-upgrades may be running on fresh Ubuntu)
 echo "--- Installing cloudflared ---"
-$SSH "sudo curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb && sudo dpkg -i /tmp/cloudflared.deb"
+$SSH "sudo curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb && for i in \$(seq 1 30); do sudo dpkg -i /tmp/cloudflared.deb && break; echo 'dpkg locked, waiting 10s...'; sleep 10; done"
 
 # Copy monitoring scripts from S3 into AMI
 echo "--- Installing monitoring scripts ---"
