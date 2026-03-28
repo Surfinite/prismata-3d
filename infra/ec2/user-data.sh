@@ -66,12 +66,12 @@ done
 
 if [ -n "$TUNNEL_URL" ]; then
     echo "Tunnel URL: $TUNNEL_URL"
-    aws ssm put-parameter \
-        --name "/prismata-3d/tunnel-url/$INSTANCE_ID" \
-        --type String \
-        --value "$TUNNEL_URL" \
-        --overwrite \
-        --region "$REGION" || echo "Failed to write tunnel URL to SSM"
+    python3 -c "
+import boto3
+ssm = boto3.client('ssm', region_name='$REGION')
+ssm.put_parameter(Name='/prismata-3d/tunnel-url/$INSTANCE_ID', Value='$TUNNEL_URL', Type='String', Overwrite=True)
+print('Tunnel URL written to SSM')
+" || echo "Failed to write tunnel URL to SSM"
 else
     echo "WARNING: Tunnel URL not captured after 30s"
 fi
