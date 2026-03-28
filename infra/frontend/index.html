@@ -680,6 +680,98 @@ model-viewer::part(default-progress-bar) {
   border-color: rgba(255, 71, 87, 0.4) !important;
 }
 
+/* ── FAVORITES BADGE ── */
+.favs-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #ffd700;
+  background: none;
+}
+.favs-badge:hover {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: #ffd700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+.favs-badge-star {
+  font-size: 16px;
+  line-height: 1;
+}
+.favs-badge-count {
+  font-size: 11px;
+  min-width: 12px;
+  text-align: center;
+}
+
+/* ── FAVORITES DROPDOWN ── */
+.favs-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 6px;
+  padding: 10px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  min-width: 280px;
+}
+.favs-dropdown-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(255, 215, 0, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.favs-dropdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+}
+.favs-dropdown-item {
+  width: 60px;
+  height: 60px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s;
+  position: relative;
+}
+.favs-dropdown-item:hover {
+  border-color: #ffd700;
+  box-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
+}
+.favs-dropdown-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.favs-dropdown-empty {
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+  padding: 16px 8px;
+}
+.favs-badge-wrapper {
+  position: relative;
+}
+
 /* ── HISTORY STRIP ── */
 .history-strip {
   border-top: 1px solid var(--border);
@@ -755,13 +847,48 @@ model-viewer::part(default-progress-bar) {
   text-overflow: ellipsis;
   margin-top: 2px;
 }
-.history-card-star {
+.history-card-overlay {
   position: absolute;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  transition: all 0.2s;
+  opacity: 0.4;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+.history-card:hover .history-card-overlay {
+  opacity: 0.8;
+}
+.history-card-overlay:hover {
+  opacity: 1 !important;
+}
+.history-card-overlay.star-btn {
   top: 2px;
   right: 2px;
-  font-size: 12px;
+  color: var(--text-secondary);
+}
+.history-card-overlay.star-btn.starred {
   color: #ffd700;
+  opacity: 1;
   text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
+}
+.history-card-overlay.reject-btn {
+  bottom: 2px;
+  right: 2px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.history-card-overlay.reject-btn.rejected {
+  color: var(--error);
+  opacity: 1;
 }
 
 /* ── JOB LOG ── */
@@ -1100,6 +1227,16 @@ label[title], .toggle-label[title], span[title] {
     <div class="status-bar">
       <span><span class="status-dot" id="connDot"></span><span id="connText">Checking...</span></span>
       <span id="queueStatus"></span>
+      <div class="favs-badge-wrapper">
+        <button class="favs-badge" id="favsBadge" title="View favorites">
+          <span class="favs-badge-star">&#9733;</span>
+          <span class="favs-badge-count" id="favsBadgeCount">...</span>
+        </button>
+        <div class="favs-dropdown" id="favsDropdown">
+          <div class="favs-dropdown-title">Recent Favorites</div>
+          <div class="favs-dropdown-grid" id="favsDropdownGrid"></div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -1402,11 +1539,9 @@ label[title], .toggle-label[title], span[title] {
     <div class="preview-panel">
       <div class="preview-header">
         <div class="preview-title-group">
-          <button class="btn-star-inline" id="btnStar" title="Favorite this model" disabled>&#9734;</button>
           <span class="preview-title" id="previewTitle">3D Preview</span>
         </div>
         <div class="preview-actions">
-          <button class="btn-action btn-thumbsdown" id="btnThumbsDown" title="Mark as bad generation" disabled>&#128078;</button>
           <button class="btn-action btn-danger" id="btnKill" title="Interrupt the currently running generation">Kill</button>
           <button class="btn-action btn-danger" id="btnClearQueue" title="Remove all pending jobs from the queue">Clear Queue</button>
           <a class="btn-action" id="btnDownload" disabled href="#" download>
@@ -1430,7 +1565,6 @@ label[title], .toggle-label[title], span[title] {
       <div class="history-strip" id="historyStrip" style="display:none;">
         <div class="history-strip-header">
           <span class="history-strip-title">Session History</span>
-          <button class="history-strip-favs-btn" id="btnViewFavorites" title="View all favorited models across all sessions">&#9733; Favorites</button>
         </div>
         <div class="history-strip-inner" id="historyStripInner"></div>
       </div>
@@ -1688,6 +1822,7 @@ async function loadManifest() {
       if (!resp.ok) continue;
       manifest = await resp.json();
       populateUnits();
+      loadFavorites();
       log('Manifest loaded — ' + Object.keys(manifest).length + ' units available');
       return;
     } catch {}
@@ -2483,24 +2618,114 @@ function escapeHtml(str) {
 }
 
 // ── History & Favorites ──
-let sessionHistory = []; // { unit, skin, url, filename, params, starred, spriteUrl }
+let sessionHistory = []; // { unit, skin, url, filename, params, starred, rejected, spriteUrl }
 let currentHistoryIndex = -1;
-const btnStar = $('btnStar');
+let favoritesCache = []; // fetched from S3 on load
 const historyStrip = $('historyStrip');
 const historyStripInner = $('historyStripInner');
+const favsBadge = $('favsBadge');
+const favsBadgeCount = $('favsBadgeCount');
+const favsDropdown = $('favsDropdown');
+const favsDropdownGrid = $('favsDropdownGrid');
+
+// Fetch favorites from S3 and populate badge + dropdown
+async function loadFavorites() {
+  try {
+    const resp = await fetch(`${API_BASE}/fabricate/api/favorites`);
+    if (!resp.ok) return;
+    favoritesCache = await resp.json();
+    favoritesCache.sort((a, b) => (b.favorited_at || '').localeCompare(a.favorited_at || ''));
+  } catch (e) {
+    favoritesCache = [];
+  }
+  renderFavsBadge();
+  renderFavsDropdown();
+}
+
+function renderFavsBadge() {
+  favsBadgeCount.textContent = favoritesCache.length;
+}
+
+function renderFavsDropdown() {
+  favsDropdownGrid.innerHTML = '';
+  if (favoritesCache.length === 0) {
+    favsDropdownGrid.innerHTML = '<div class="favs-dropdown-empty">No favorites yet — star a model to add it here</div>';
+    return;
+  }
+  for (const fav of favoritesCache) {
+    const item = document.createElement('div');
+    item.className = 'favs-dropdown-item';
+    item.title = `${formatUnitName(fav.unit)} [${fav.skin}]`;
+
+    // Use sprite from manifest
+    const spritePath = manifest?.[fav.unit]?.[fav.skin];
+    if (spritePath) {
+      const img = document.createElement('img');
+      const parts = spritePath.split('/');
+      const filename = parts[parts.length - 1];
+      const subfolder = parts.slice(0, -1).join('/');
+      img.src = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=input&subfolder=${encodeURIComponent(subfolder)}`;
+      img.alt = fav.unit;
+      item.appendChild(img);
+    }
+
+    item.addEventListener('click', () => loadFavoriteModel(fav));
+    favsDropdownGrid.appendChild(item);
+  }
+}
+
+async function loadFavoriteModel(fav) {
+  // Close dropdown
+  favsDropdown.style.display = 'none';
+
+  // Select unit/skin in dropdowns
+  unitSelect.value = fav.unit;
+  unitSelect.dispatchEvent(new Event('change'));
+  await new Promise(r => setTimeout(r, 100));
+  skinSelect.value = fav.skin;
+  skinSelect.dispatchEvent(new Event('change'));
+
+  // Load the specific favorited model from S3
+  const url = `${API_BASE}/fabricate/api/s3-model/${encodeURIComponent(fav.unit)}/${encodeURIComponent(fav.skin)}?format=glb${fav.filename ? '&filename=' + encodeURIComponent(fav.filename) : ''}`;
+  previewTitle.textContent = `${formatUnitName(fav.unit)} — ${fav.skin}`;
+  loadModelFromUrl(url, fav.filename || 'favorite.glb');
+  log(`Loaded favorite: ${formatUnitName(fav.unit)} [${fav.skin}]`, 'success');
+}
+
+// Badge hover → show dropdown
+let favsDropdownTimeout;
+const favsBadgeWrapper = favsBadge.parentElement;
+
+favsBadgeWrapper.addEventListener('mouseenter', () => {
+  clearTimeout(favsDropdownTimeout);
+  favsDropdown.style.display = 'block';
+});
+favsBadgeWrapper.addEventListener('mouseleave', () => {
+  favsDropdownTimeout = setTimeout(() => {
+    favsDropdown.style.display = 'none';
+  }, 200);
+});
+
+// Badge click → open full favorites overlay
+favsBadge.addEventListener('click', (e) => {
+  e.stopPropagation();
+  favsDropdown.style.display = 'none';
+  showFavoritesOverlay();
+});
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!favsBadgeWrapper.contains(e.target)) {
+    favsDropdown.style.display = 'none';
+  }
+});
 
 function addToHistory(unit, skin, modelUrl, filename, params) {
-  // Get sprite URL for thumbnail
   const spriteUrl = spritePreview.src || '';
   const entry = { unit, skin, url: modelUrl, filename, params: params ? {...params} : null, starred: false, rejected: false, spriteUrl };
   sessionHistory.push(entry);
   currentHistoryIndex = sessionHistory.length - 1;
   renderHistory();
-  btnStar.disabled = false;
-  btnStar.textContent = '\u2606';
-  btnStar.classList.remove('starred');
-  btnThumbsDown.disabled = false;
-  btnThumbsDown.classList.remove('thumbed');
 }
 
 function renderHistory() {
@@ -2514,16 +2739,51 @@ function renderHistory() {
     const h = sessionHistory[i];
     const card = document.createElement('div');
     card.className = 'history-card' + (i === currentHistoryIndex ? ' active' : '');
-    card.innerHTML = `
-      ${h.spriteUrl ? `<img class="history-card-img" src="${h.spriteUrl}" alt="${h.unit}">` : '<div class="history-card-img"></div>'}
-      <div class="history-card-label">${formatUnitName(h.unit)}</div>
-      ${h.starred ? '<span class="history-card-star">\u2605</span>' : ''}
-      ${h.rejected ? '<span class="history-card-star" style="color:var(--error);left:2px;right:auto;">\u{1F44E}</span>' : ''}
-    `;
+
+    // Sprite image
+    if (h.spriteUrl) {
+      const img = document.createElement('img');
+      img.className = 'history-card-img';
+      img.src = h.spriteUrl;
+      img.alt = h.unit;
+      card.appendChild(img);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'history-card-img';
+      card.appendChild(placeholder);
+    }
+
+    // Unit name label
+    const label = document.createElement('div');
+    label.className = 'history-card-label';
+    label.textContent = formatUnitName(h.unit);
+    card.appendChild(label);
+
+    // Star overlay button (top-right)
+    const starBtn = document.createElement('button');
+    starBtn.className = 'history-card-overlay star-btn' + (h.starred ? ' starred' : '');
+    starBtn.textContent = h.starred ? '\u2605' : '\u2606';
+    starBtn.title = h.starred ? 'Remove from favorites' : 'Add to favorites';
+    starBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleStar(i);
+    });
+    card.appendChild(starBtn);
+
+    // Thumbs-down overlay button (bottom-right)
+    const rejectBtn = document.createElement('button');
+    rejectBtn.className = 'history-card-overlay reject-btn' + (h.rejected ? ' rejected' : '');
+    rejectBtn.textContent = '\u{1F44E}';
+    rejectBtn.title = h.rejected ? 'Remove rejection' : 'Mark as bad generation';
+    rejectBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleReject(i);
+    });
+    card.appendChild(rejectBtn);
+
     card.addEventListener('click', () => loadFromHistory(i));
     historyStripInner.appendChild(card);
   }
-  // Scroll to latest
   historyStripInner.scrollLeft = historyStripInner.scrollWidth;
 }
 
@@ -2533,41 +2793,45 @@ function loadFromHistory(index) {
   currentGenParams = h.params;
   loadModelFromUrl(h.url, h.filename);
   previewTitle.textContent = `${formatUnitName(h.unit)} — ${h.skin}`;
-  btnStar.disabled = false;
-  btnStar.textContent = h.starred ? '\u2605' : '\u2606';
-  btnStar.classList.toggle('starred', h.starred);
-  btnThumbsDown.disabled = false;
-  btnThumbsDown.classList.toggle('thumbed', h.rejected || false);
   renderHistory();
 }
 
-btnStar.addEventListener('click', () => {
-  if (currentHistoryIndex < 0 || currentHistoryIndex >= sessionHistory.length) return;
-  const h = sessionHistory[currentHistoryIndex];
+function toggleStar(index) {
+  const h = sessionHistory[index];
   h.starred = !h.starred;
-  btnStar.textContent = h.starred ? '\u2605' : '\u2606';
-  btnStar.classList.toggle('starred', h.starred);
   renderHistory();
 
-  // Save favorite to S3
   if (h.starred && h.filename) {
+    // Add to S3 + local cache
     fetch(`${API_BASE}/fabricate/api/favorite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename, params: h.params })
     }).catch(() => {});
+    // Update local cache
+    const fav = { unit: h.unit, skin: h.skin, filename: h.filename, params: h.params,
+                  favorited_at: new Date().toISOString() };
+    favoritesCache.unshift(fav);
+    renderFavsBadge();
+    renderFavsDropdown();
+  } else if (!h.starred && h.filename) {
+    // Remove from S3 + local cache
+    fetch(`${API_BASE}/fabricate/api/unfavorite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename })
+    }).catch(() => {});
+    favoritesCache = favoritesCache.filter(f => !(f.unit === h.unit && f.skin === h.skin && f.filename === h.filename));
+    renderFavsBadge();
+    renderFavsDropdown();
   }
-});
+}
 
-const btnThumbsDown = $('btnThumbsDown');
-btnThumbsDown.addEventListener('click', () => {
-  if (currentHistoryIndex < 0 || currentHistoryIndex >= sessionHistory.length) return;
-  const h = sessionHistory[currentHistoryIndex];
+function toggleReject(index) {
+  const h = sessionHistory[index];
   h.rejected = !h.rejected;
-  btnThumbsDown.classList.toggle('thumbed', h.rejected);
   renderHistory();
 
-  // Save rejection to S3
   if (h.rejected && h.filename) {
     fetch(`${API_BASE}/fabricate/api/reject`, {
       method: 'POST',
@@ -2575,18 +2839,16 @@ btnThumbsDown.addEventListener('click', () => {
       body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename, params: h.params })
     }).catch(() => {});
   }
-});
+}
 
-$('btnViewFavorites').addEventListener('click', async () => {
+async function showFavoritesOverlay() {
   try {
-    const resp = await fetch(`${API_BASE}/fabricate/api/favorites`);
-    if (!resp.ok) return;
-    const favs = await resp.json();
+    // Use cache if available, otherwise fetch
+    const favs = favoritesCache.length > 0 ? favoritesCache : await fetch(`${API_BASE}/fabricate/api/favorites`).then(r => r.json());
     if (favs.length === 0) {
       log('No favorites saved yet');
       return;
     }
-    // Show favorites in a simple overlay
     let overlay = $('favsOverlay');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -2614,7 +2876,7 @@ $('btnViewFavorites').addEventListener('click', async () => {
     `;
     overlay.style.display = 'flex';
   } catch (e) { log('Failed to load favorites: ' + e.message, 'error'); }
-});
+}
 
 // ── Batch Mode ──
 let batchRunning = false;
