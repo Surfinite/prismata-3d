@@ -1790,9 +1790,12 @@ async function checkConnection() {
         : pending > 0 ? `Queue: ${pending} pending` : '';
     }
   } catch {
-    connDot.classList.remove('connected');
-    connText.textContent = 'Offline';
-    queueStatus.textContent = '';
+    // Don't show "Offline" during active generation — ComfyUI is just busy on GPU
+    if (!currentPromptId) {
+      connDot.classList.remove('connected');
+      connText.textContent = 'Offline';
+      queueStatus.textContent = '';
+    }
   }
 }
 
