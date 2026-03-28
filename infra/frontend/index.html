@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRISMATA // Fabrication Terminal</title>
+
+<!-- Google model-viewer for GLB preview -->
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   PRISMATA FABRICATION TERMINAL — Phase 1C
+   Dark industrial command console with cyber-military aesthetic
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg-base: #0a0e14;
+  --bg-panel: #0d1117;
+  --bg-input: #151b23;
+  --bg-hover: #1a2230;
+  --border: #1e2a3a;
+  --border-focus: #00e5ff40;
+  --accent: #00e5ff;
+  --accent-dim: #00e5ff80;
+  --accent-glow: #00e5ff30;
+  --accent-warm: #ff6b35;
+  --text-primary: #c8d6e5;
+  --text-secondary: #6b7f95;
+  --text-bright: #e8f0f8;
+  --success: #00ff88;
+  --error: #ff4757;
+  --warning: #ffa726;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Rajdhani', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--display);
+  font-weight: 500;
+  overflow: hidden;
+}
+
+/* Scan-line overlay on the entire page */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+}
+
+/* ── LAYOUT ── */
+.terminal {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #0f1520, var(--bg-base));
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-transform: uppercase;
+  text-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(0, 229, 255, 0.1);
+}
+
+.logo-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--error);
+  margin-right: 6px;
+  box-shadow: 0 0 8px var(--error);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.status-dot.connected {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  overflow: hidden;
+}
+
+/* ── LEFT PANEL: Controls ── */
+.controls-panel {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background:
+    linear-gradient(135deg, rgba(0, 229, 255, 0.02) 0%, transparent 50%),
+    var(--bg-base);
+}
+
+.controls-panel::-webkit-scrollbar { width: 4px; }
+.controls-panel::-webkit-scrollbar-track { background: transparent; }
+.controls-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── SECTION ── */
+.section {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.06), transparent);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.section-header::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 1px;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.section-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── FORM CONTROLS ── */
+label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-bright);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select:focus, input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+select {
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300e5ff' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+
+select option {
+  background: var(--bg-input);
+  color: var(--text-bright);
+}
+
+/* ── SPRITE PREVIEW ── */
+.sprite-preview-container {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  position: relative;
+  min-height: 180px;
+}
+
+.sprite-preview-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at center, rgba(0, 229, 255, 0.04), transparent 70%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 19px,
+      rgba(0, 229, 255, 0.03) 19px,
+      rgba(0, 229, 255, 0.03) 20px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 19px,
+      rgba(0, 229, 255, 0.03) 19px,
+      rgba(0, 229, 255, 0.03) 20px
+    );
+  pointer-events: none;
+}
+
+.sprite-preview {
+  max-width: 160px;
+  max-height: 160px;
+  image-rendering: auto;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.15));
+  transition: transform 0.3s ease;
+}
+
+.sprite-preview:hover {
+  transform: scale(1.05);
+}
+
+.sprite-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 160px;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── PARAM ROWS ── */
+.param-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.param-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.seed-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.seed-row input {
+  flex: 1;
+}
+
+.btn-randomize {
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.btn-randomize:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.btn-randomize:active {
+  transform: rotate(180deg);
+}
+
+/* ── GENERATE BUTTON ── */
+.btn-generate {
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 229, 255, 0.08));
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-generate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.btn-generate:hover::before {
+  transform: translateX(100%);
+}
+
+.btn-generate:hover {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(0, 229, 255, 0.12));
+  box-shadow: 0 0 20px var(--accent-glow), inset 0 0 20px var(--accent-glow);
+  text-shadow: 0 0 10px var(--accent);
+}
+
+.btn-generate:active {
+  transform: scale(0.98);
+}
+
+.btn-generate:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-generate.generating {
+  background: linear-gradient(135deg, rgba(255, 167, 38, 0.15), rgba(255, 167, 38, 0.08));
+  border-color: var(--warning);
+  color: var(--warning);
+  animation: gen-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes gen-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 167, 38, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(255, 167, 38, 0.3), inset 0 0 15px rgba(255, 167, 38, 0.1); }
+}
+
+/* ── RIGHT PANEL: 3D Preview ── */
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Hex grid background for preview area */
+.preview-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpath d='M30 0L60 15v22L30 52 0 37V15z' fill='none' stroke='%231e2a3a' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 60px 52px;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  position: relative;
+  z-index: 1;
+}
+
+.preview-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-action {
+  padding: 6px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.btn-action:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.preview-viewport {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+model-viewer {
+  width: 100%;
+  height: 100%;
+  --poster-color: transparent;
+  background: transparent;
+}
+
+model-viewer::part(default-progress-bar) {
+  display: none;
+}
+
+.preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.preview-empty-icon {
+  width: 80px;
+  height: 80px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.preview-empty-icon::before {
+  content: '';
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--text-secondary);
+  transform: rotate(45deg);
+}
+
+.preview-empty-icon::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border: 1px dashed var(--border);
+  border-radius: 50%;
+  animation: spin-slow 20s linear infinite;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.preview-empty-text {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.preview-empty-hint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+/* ── STATUS / PROGRESS BAR ── */
+.status-strip {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+  font-family: var(--mono);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+  min-height: 42px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: width 0.5s ease;
+}
+
+.progress-bar-fill.indeterminate {
+  width: 30%;
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.status-text {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 180px;
+}
+
+.status-text.success { color: var(--success); }
+.status-text.error { color: var(--error); }
+.status-text.working { color: var(--warning); }
+
+.elapsed-time {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── JOB LOG ── */
+.job-log {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  border-top: 1px solid transparent;
+}
+
+.job-log.open {
+  max-height: 200px;
+  border-top-color: var(--border);
+}
+
+.job-log-inner {
+  padding: 10px 20px;
+  background: var(--bg-base);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow-y: auto;
+  max-height: 180px;
+}
+
+.log-entry {
+  padding: 2px 0;
+  display: flex;
+  gap: 10px;
+}
+
+.log-time { color: var(--text-secondary); opacity: 0.5; }
+.log-msg { color: var(--text-primary); }
+.log-msg.error { color: var(--error); }
+.log-msg.success { color: var(--success); }
+
+/* ── GENERATION METADATA OVERLAY ── */
+.gen-meta {
+  position: absolute;
+  bottom: 10px;
+  left: 16px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  background: rgba(10, 14, 20, 0.8);
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: none;
+}
+
+.gen-meta.visible { display: block; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .main-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .controls-panel {
+    max-height: 50vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="terminal">
+  <!-- ════════ HEADER ════════ -->
+  <header class="header">
+    <div class="header-left">
+      <div>
+        <div class="logo">Prismata</div>
+        <div class="logo-sub">Fabrication Terminal v1.0</div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <span><span class="status-dot" id="connDot"></span><span id="connText">Checking...</span></span>
+      <span id="queueStatus"></span>
+    </div>
+  </header>
+
+  <!-- ════════ MAIN ════════ -->
+  <div class="main-content">
+    <!-- ──── LEFT: Controls ──── -->
+    <div class="controls-panel">
+
+      <!-- Unit Selection -->
+      <div class="section">
+        <div class="section-header">Unit Selection</div>
+        <div class="section-body">
+          <div>
+            <label for="unitSelect">Unit</label>
+            <select id="unitSelect"><option value="">Loading units...</option></select>
+          </div>
+          <div>
+            <label for="skinSelect">Skin</label>
+            <select id="skinSelect"><option value="">Select a unit first</option></select>
+          </div>
+          <div class="sprite-preview-container">
+            <div class="sprite-placeholder" id="spritePlaceholder">Select a unit<br>to preview</div>
+            <img class="sprite-preview" id="spritePreview" style="display:none" alt="Unit sprite">
+          </div>
+        </div>
+      </div>
+
+      <!-- Generation Settings -->
+      <div class="section">
+        <div class="section-header">Generation Settings</div>
+        <div class="section-body">
+          <div class="param-row">
+            <div class="param-group">
+              <label for="stepsInput">Steps</label>
+              <input type="number" id="stepsInput" value="20" min="5" max="50" step="1">
+            </div>
+            <div class="param-group">
+              <label for="guidanceInput">Guidance Scale</label>
+              <input type="number" id="guidanceInput" value="5.5" min="1" max="15" step="0.5">
+            </div>
+          </div>
+          <div class="param-row">
+            <div class="param-group">
+              <label for="octreeInput">Octree Resolution</label>
+              <select id="octreeInput">
+                <option value="128">128 — Fast</option>
+                <option value="256" selected>256 — Standard</option>
+                <option value="384">384 — High Detail</option>
+              </select>
+            </div>
+            <div class="param-group">
+              <label for="seedInput">Seed</label>
+              <div class="seed-row">
+                <input type="number" id="seedInput" value="42" min="0" max="999999999">
+                <button class="btn-randomize" id="btnRandomize" title="Randomize seed">&#x21bb;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate -->
+      <button class="btn-generate" id="btnGenerate" disabled>
+        Fabricate Unit
+      </button>
+    </div>
+
+    <!-- ──── RIGHT: 3D Preview ──── -->
+    <div class="preview-panel">
+      <div class="preview-header">
+        <span class="preview-title" id="previewTitle">3D Preview</span>
+        <div class="preview-actions">
+          <a class="btn-action" id="btnDownload" disabled href="#" download>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download GLB
+          </a>
+          <button class="btn-action" id="btnLogToggle">Log</button>
+        </div>
+      </div>
+
+      <div class="preview-viewport" id="previewViewport">
+        <div class="preview-empty" id="previewEmpty">
+          <div class="preview-empty-icon"></div>
+          <div class="preview-empty-text">No model loaded</div>
+          <div class="preview-empty-hint">Select a unit and click Fabricate</div>
+        </div>
+      </div>
+
+      <div class="gen-meta" id="genMeta"></div>
+
+      <div class="job-log" id="jobLog">
+        <div class="job-log-inner" id="jobLogInner"></div>
+      </div>
+
+      <div class="status-strip">
+        <span class="status-text" id="statusText">Ready</span>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+        <span class="elapsed-time" id="elapsedTime"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PRISMATA FABRICATION TERMINAL — Frontend Logic
+// Talks to ComfyUI API on same origin
+// ═══════════════════════════════════════════════════════════════
+
+const API_BASE = window.location.origin;
+
+// ── State ──
+let manifest = {};
+let currentPromptId = null;
+let pollInterval = null;
+let genStartTime = null;
+let elapsedInterval = null;
+let modelViewerEl = null;
+
+// ── DOM refs ──
+const $ = id => document.getElementById(id);
+const unitSelect = $('unitSelect');
+const skinSelect = $('skinSelect');
+const spritePreview = $('spritePreview');
+const spritePlaceholder = $('spritePlaceholder');
+const stepsInput = $('stepsInput');
+const guidanceInput = $('guidanceInput');
+const octreeInput = $('octreeInput');
+const seedInput = $('seedInput');
+const btnRandomize = $('btnRandomize');
+const btnGenerate = $('btnGenerate');
+const btnDownload = $('btnDownload');
+const btnLogToggle = $('btnLogToggle');
+const previewViewport = $('previewViewport');
+const previewEmpty = $('previewEmpty');
+const previewTitle = $('previewTitle');
+const genMeta = $('genMeta');
+const statusText = $('statusText');
+const progressFill = $('progressFill');
+const elapsedTime = $('elapsedTime');
+const connDot = $('connDot');
+const connText = $('connText');
+const queueStatus = $('queueStatus');
+const jobLog = $('jobLog');
+const jobLogInner = $('jobLogInner');
+
+// ── Initialization ──
+async function init() {
+  await checkConnection();
+  await loadManifest();
+  bindEvents();
+  setInterval(checkConnection, 15000);
+}
+
+async function checkConnection() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/system_stats`, { signal: AbortSignal.timeout(5000) });
+    if (resp.ok) {
+      connDot.classList.add('connected');
+      connText.textContent = 'ComfyUI Online';
+      // Check queue
+      const qResp = await fetch(`${API_BASE}/api/queue`);
+      const q = await qResp.json();
+      const running = q.queue_running?.length || 0;
+      const pending = q.queue_pending?.length || 0;
+      queueStatus.textContent = running > 0
+        ? `Queue: ${running} running, ${pending} pending`
+        : pending > 0 ? `Queue: ${pending} pending` : '';
+    }
+  } catch {
+    connDot.classList.remove('connected');
+    connText.textContent = 'Offline';
+    queueStatus.textContent = '';
+  }
+}
+
+async function loadManifest() {
+  // Try multiple paths: deployed alongside HTML, ComfyUI view API, root fallback
+  const paths = [
+    'manifest.json',
+    `${API_BASE}/api/view?filename=prismata-assets/manifest.json&type=input`,
+    `${API_BASE}/prismata-assets/manifest.json`,
+  ];
+  for (const path of paths) {
+    try {
+      const resp = await fetch(path);
+      if (!resp.ok) continue;
+      manifest = await resp.json();
+      populateUnits();
+      log('Manifest loaded — ' + Object.keys(manifest).length + ' units available');
+      return;
+    } catch {}
+  }
+  log('Failed to load manifest from any path', 'error');
+  unitSelect.innerHTML = '<option value="">Failed to load units</option>';
+}
+
+function populateUnits() {
+  const units = Object.keys(manifest).sort((a, b) => a.localeCompare(b));
+  unitSelect.innerHTML = '<option value="">— Select Unit —</option>';
+  for (const name of units) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    // Display name: replace underscores/hyphens, title case
+    opt.textContent = formatUnitName(name);
+    unitSelect.appendChild(opt);
+  }
+}
+
+function formatUnitName(name) {
+  return name
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function populateSkins(unitName) {
+  const skins = manifest[unitName];
+  if (!skins) return;
+  const skinNames = Object.keys(skins).sort();
+  skinSelect.innerHTML = '';
+  for (const skin of skinNames) {
+    const opt = document.createElement('option');
+    opt.value = skin;
+    opt.textContent = skin;
+    if (skin === 'Regular') opt.selected = true;
+    skinSelect.appendChild(opt);
+  }
+}
+
+function updateSpritePreview() {
+  const unit = unitSelect.value;
+  const skin = skinSelect.value;
+  if (!unit || !skin || !manifest[unit]?.[skin]) {
+    spritePreview.style.display = 'none';
+    spritePlaceholder.style.display = 'flex';
+    btnGenerate.disabled = true;
+    return;
+  }
+  const path = manifest[unit][skin];
+  // Use ComfyUI's view API to serve sprites from input directory
+  spritePreview.src = `${API_BASE}/api/view?filename=${encodeURIComponent('prismata-assets/' + path)}&type=input`;
+  spritePreview.style.display = 'block';
+  spritePlaceholder.style.display = 'none';
+  btnGenerate.disabled = false;
+}
+
+// ── Events ──
+function bindEvents() {
+  unitSelect.addEventListener('change', () => {
+    if (unitSelect.value) {
+      populateSkins(unitSelect.value);
+    } else {
+      skinSelect.innerHTML = '<option value="">Select a unit first</option>';
+    }
+    updateSpritePreview();
+  });
+  skinSelect.addEventListener('change', updateSpritePreview);
+
+  btnRandomize.addEventListener('click', () => {
+    seedInput.value = Math.floor(Math.random() * 999999999);
+  });
+
+  btnGenerate.addEventListener('click', startGeneration);
+  btnLogToggle.addEventListener('click', () => {
+    jobLog.classList.toggle('open');
+  });
+}
+
+// ── Generation ──
+async function startGeneration() {
+  const unit = unitSelect.value;
+  const skin = skinSelect.value;
+  if (!unit || !skin) return;
+
+  const imagePath = manifest[unit][skin];
+  // The image filename as ComfyUI sees it (in its input directory)
+  // Images are symlinked at /opt/comfyui/input/prismata-assets/units/...
+  const comfyInputImage = `prismata-assets/${imagePath}`;
+  const outputPrefix = `${unit}_${skin}_3d`;
+
+  const steps = parseInt(stepsInput.value) || 20;
+  const guidance = parseFloat(guidanceInput.value) || 5.5;
+  const octree = parseInt(octreeInput.value) || 256;
+  const seed = parseInt(seedInput.value) || 42;
+
+  // Build the API workflow (matches the proven multi-stage pipeline)
+  const workflow = {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": comfyInputImage
+      }
+    },
+    "2": {
+      "class_type": "Hy3DModelLoader",
+      "inputs": {
+        "model": "hunyuan3d-dit-v2-0"
+      }
+    },
+    "3": {
+      "class_type": "Hy3DGenerateMesh",
+      "inputs": {
+        "pipeline": ["2", 0],
+        "image": ["1", 0],
+        "steps": steps,
+        "guidance_scale": guidance,
+        "seed": seed
+      }
+    },
+    "4": {
+      "class_type": "Hy3DVAEDecode",
+      "inputs": {
+        "vae": ["2", 1],
+        "latents": ["3", 0],
+        "octree_resolution": octree,
+        "num_chunks": 8000
+      }
+    },
+    "5": {
+      "class_type": "Hy3DExportMesh",
+      "inputs": {
+        "trimesh": ["4", 0],
+        "file_format": "glb",
+        "filename_prefix": outputPrefix
+      }
+    }
+  };
+
+  setGenerating(true, `Fabricating ${formatUnitName(unit)} [${skin}]...`);
+  log(`Queuing generation: ${unit}/${skin} — steps=${steps} guidance=${guidance} seed=${seed} octree=${octree}`);
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: workflow })
+    });
+
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      throw new Error(`API error ${resp.status}: ${errBody}`);
+    }
+
+    const data = await resp.json();
+    currentPromptId = data.prompt_id;
+    log(`Job queued — prompt_id: ${currentPromptId}`);
+    startPolling();
+  } catch (err) {
+    log('Generation failed: ' + err.message, 'error');
+    setGenerating(false);
+    setStatus('Generation failed: ' + err.message, 'error');
+  }
+}
+
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(pollHistory, 3000);
+  // Immediate first check after a short delay
+  setTimeout(pollHistory, 2000);
+}
+
+async function pollHistory() {
+  if (!currentPromptId) return;
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/history/${currentPromptId}`);
+    if (!resp.ok) return;
+
+    const data = await resp.json();
+    const entry = data[currentPromptId];
+
+    if (!entry) {
+      // Not in history yet — still running or queued
+      return;
+    }
+
+    // Check for errors in outputs
+    if (entry.status?.status_str === 'error') {
+      clearInterval(pollInterval);
+      pollInterval = null;
+      const errMsg = entry.status?.messages?.find(m => m[0] === 'execution_error');
+      const detail = errMsg ? errMsg[1]?.exception_message || 'Unknown error' : 'Unknown error';
+      log('Generation failed: ' + detail, 'error');
+      setGenerating(false);
+      setStatus('Generation failed', 'error');
+      return;
+    }
+
+    // Check if complete (has outputs)
+    if (entry.outputs) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+
+      // Find the GLB output from node 5 (Hy3DExportMesh)
+      const exportOutput = entry.outputs['5'];
+      let glbFile = null;
+
+      if (exportOutput) {
+        // Hy3DExportMesh outputs a glb_path or files array
+        if (exportOutput.glb_files) {
+          glbFile = exportOutput.glb_files[0]?.filename;
+        } else if (exportOutput.text) {
+          // Sometimes the path is returned as text
+          const pathMatch = exportOutput.text.find(t => t.endsWith('.glb'));
+          glbFile = pathMatch;
+        }
+        // Try generic scan of all output values
+        if (!glbFile) {
+          const outputStr = JSON.stringify(exportOutput);
+          const glbMatch = outputStr.match(/([^"\/\\]+\.glb)/);
+          if (glbMatch) glbFile = glbMatch[1];
+        }
+      }
+
+      // Fallback: scan all outputs for any GLB reference
+      if (!glbFile) {
+        const allOutputStr = JSON.stringify(entry.outputs);
+        const glbMatch = allOutputStr.match(/([^"\/\\]+\.glb)/);
+        if (glbMatch) glbFile = glbMatch[1];
+      }
+
+      if (glbFile) {
+        log('Generation complete: ' + glbFile, 'success');
+        setGenerating(false);
+        setStatus('Fabrication complete', 'success');
+        loadModel(glbFile);
+      } else {
+        log('Generation completed but no GLB file found in outputs', 'error');
+        log('Raw outputs: ' + JSON.stringify(entry.outputs).substring(0, 500));
+        setGenerating(false);
+        setStatus('Complete — no GLB found (check log)', 'error');
+      }
+    }
+  } catch (err) {
+    // Network error during polling, keep trying
+    log('Poll error: ' + err.message, 'error');
+  }
+}
+
+function loadModel(filename) {
+  const modelUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`;
+
+  // Remove old model-viewer if present
+  if (modelViewerEl) {
+    modelViewerEl.remove();
+    modelViewerEl = null;
+  }
+
+  previewEmpty.style.display = 'none';
+
+  modelViewerEl = document.createElement('model-viewer');
+  modelViewerEl.setAttribute('src', modelUrl);
+  modelViewerEl.setAttribute('alt', `3D model of ${unitSelect.value}`);
+  modelViewerEl.setAttribute('camera-controls', '');
+  modelViewerEl.setAttribute('auto-rotate', '');
+  modelViewerEl.setAttribute('shadow-intensity', '0.5');
+  modelViewerEl.setAttribute('exposure', '1.2');
+  modelViewerEl.setAttribute('environment-image', 'neutral');
+  modelViewerEl.style.width = '100%';
+  modelViewerEl.style.height = '100%';
+  modelViewerEl.style.background = 'transparent';
+  previewViewport.appendChild(modelViewerEl);
+
+  // Update download button
+  btnDownload.href = modelUrl;
+  btnDownload.download = filename;
+  btnDownload.removeAttribute('disabled');
+
+  // Update title
+  previewTitle.textContent = `${formatUnitName(unitSelect.value)} — ${skinSelect.value}`;
+
+  // Show generation metadata
+  genMeta.innerHTML = [
+    `steps: ${stepsInput.value}`,
+    `guidance: ${guidanceInput.value}`,
+    `octree: ${octreeInput.value}`,
+    `seed: ${seedInput.value}`,
+  ].join(' &middot; ');
+  genMeta.classList.add('visible');
+}
+
+// ── UI Helpers ──
+function setGenerating(active, msg) {
+  if (active) {
+    btnGenerate.disabled = true;
+    btnGenerate.classList.add('generating');
+    btnGenerate.textContent = 'Fabricating...';
+    progressFill.classList.add('indeterminate');
+    progressFill.style.width = '';
+    setStatus(msg || 'Generating...', 'working');
+    genStartTime = Date.now();
+    startElapsedTimer();
+  } else {
+    btnGenerate.disabled = false;
+    btnGenerate.classList.remove('generating');
+    btnGenerate.textContent = 'Fabricate Unit';
+    progressFill.classList.remove('indeterminate');
+    progressFill.style.width = '100%';
+    setTimeout(() => { progressFill.style.width = '0%'; }, 2000);
+    genStartTime = null;
+    stopElapsedTimer();
+    currentPromptId = null;
+  }
+}
+
+function setStatus(msg, type = '') {
+  statusText.textContent = msg;
+  statusText.className = 'status-text' + (type ? ' ' + type : '');
+}
+
+function startElapsedTimer() {
+  stopElapsedTimer();
+  updateElapsed();
+  elapsedInterval = setInterval(updateElapsed, 1000);
+}
+
+function stopElapsedTimer() {
+  if (elapsedInterval) {
+    clearInterval(elapsedInterval);
+    elapsedInterval = null;
+  }
+}
+
+function updateElapsed() {
+  if (!genStartTime) {
+    elapsedTime.textContent = '';
+    return;
+  }
+  const secs = Math.floor((Date.now() - genStartTime) / 1000);
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  elapsedTime.textContent = `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function log(msg, type = '') {
+  const now = new Date();
+  const ts = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${ts}</span><span class="log-msg ${type}">${escapeHtml(msg)}</span>`;
+  jobLogInner.appendChild(entry);
+  jobLogInner.scrollTop = jobLogInner.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ── Boot ──
+init();
+</script>
+</body>
+</html>
