@@ -1063,6 +1063,46 @@ label[title], .toggle-label[title], span[title] {
         </div>
       </div>
 
+      <!-- Expert Settings -->
+      <div class="section-advanced" id="expertSection">
+        <button class="advanced-toggle" id="expertToggle" style="color:var(--error);background:linear-gradient(90deg,rgba(255,71,87,0.04),transparent)">
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--error);border-radius:1px;box-shadow:0 0 8px rgba(255,71,87,0.3);display:inline-block"></span>Expert Only</span>
+          <span class="advanced-toggle-arrow">&#x25BC;</span>
+        </button>
+        <div class="advanced-body">
+          <div class="advanced-body-inner">
+
+            <div class="subsection-label" style="color:var(--error)">Preprocessing</div>
+            <div class="toggle-row">
+              <div>
+                <span class="toggle-label" title="Composite the sprite onto a solid white 518x518 canvas before feeding to the model. Hunyuan3D was trained on white backgrounds. Helps some units but can flatten others into planks.">White Background</span>
+                <span class="toggle-hint">Composite onto white before generation (can flatten some units)</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="whiteBgToggle">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
+            <div class="subsection-label" style="color:var(--error)">VAE Decode</div>
+            <div class="param-row">
+              <div class="param-group">
+                <label for="boxVInput" title="Bounding box scale for marching cubes. Default 1.01. Lower = tighter fit, higher = more space around the model.">Box V</label>
+                <input type="number" id="boxVInput" value="1.01" min="0.5" max="5.0" step="0.01">
+              </div>
+              <div class="param-group">
+                <label for="mcAlgoSelect" title="Marching cubes algorithm. 'mc' is standard, 'dmc' is dual marching cubes (can produce smoother surfaces).">MC Algorithm</label>
+                <select id="mcAlgoSelect">
+                  <option value="mc" selected>MC (Standard)</option>
+                  <option value="dmc">DMC (Dual)</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
       <!-- Generate -->
       <button class="btn-generate" id="btnGenerate" disabled>
         Fabricate Unit
@@ -1230,12 +1270,76 @@ function handleWsMessage(msg) {
   }
 }
 
+// ── Reconnect to running/pending jobs on page load ──
+async function reconnectToRunningJobs() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/queue`);
+    if (!resp.ok) return;
+    const q = await resp.json();
+
+    const running = q.queue_running || [];
+    const pending = q.queue_pending || [];
+    if (running.length === 0 && pending.length === 0) return;
+
+    // Each queue entry: [index, prompt_id, prompt_workflow, extra_data, output_node_ids]
+    const job = running[0] || pending[0];
+    if (!job || !job[1]) return;
+
+    const promptId = job[1];
+    const prompt = job[2] || {};
+
+    // Extract output prefix and export node from the workflow
+    let prefix = null;
+    let exportNodeId = null;
+    for (const [nodeId, node] of Object.entries(prompt)) {
+      if (node.class_type === 'Hy3DExportMesh') {
+        prefix = node.inputs?.filename_prefix;
+        exportNodeId = nodeId;
+      }
+    }
+
+    // Build stage map from the workflow
+    nodeStageMap = {};
+    const stageNames = {
+      'LoadImage': 'Loading image',
+      'Hy3DModelLoader': 'Loading 3D model into VRAM',
+      'Hy3DGenerateMesh': 'Generating mesh (diffusion)',
+      'Hy3DVAEDecode': 'Decoding mesh (marching cubes)',
+      'Hy3DPostprocessMesh': 'Cleaning up mesh',
+      'Hy3DMeshUVWrap': 'Unwrapping UVs',
+      'DownloadAndLoadHy3DPaintModel': 'Loading paint model',
+      'Hy3DRenderMultiView': 'Rendering multiview',
+      'Hy3DSampleMultiView': 'Painting multiview textures',
+      'Hy3DBakeFromMultiview': 'Baking texture',
+      'Hy3DMeshVerticeInpaintTexture': 'Inpainting texture gaps',
+      'CV2InpaintTexture': 'Refining texture',
+      'Hy3DApplyTexture': 'Applying texture to mesh',
+      'Hy3DExportMesh': 'Exporting GLB',
+    };
+    for (const [id, node] of Object.entries(prompt)) {
+      nodeStageMap[id] = stageNames[node.class_type] || node.class_type;
+    }
+
+    // Resume tracking
+    currentPromptId = promptId;
+    currentExportNodeId = exportNodeId;
+    currentOutputPrefix = prefix;
+
+    const isRunning = running.length > 0;
+    const label = prefix ? prefix.replace(/_3d$/, '').replace(/_/g, ' ') : 'Unknown';
+    log(`Reconnected to ${isRunning ? 'running' : 'pending'} job: ${label}`, 'success');
+    setGenerating(true, `${isRunning ? 'Fabricating' : 'Queued'}: ${label}...`);
+    startPolling();
+  } catch {}
+}
+
 // ── Initialization ──
 async function init() {
   await checkConnection();
   await loadManifest();
   bindEvents();
   connectWebSocket();
+  await reconnectToRunningJobs();
   setInterval(checkConnection, 15000);
 }
 
@@ -1360,6 +1464,9 @@ function bindEvents() {
   textureToggle.addEventListener('change', () => {
     textureSettings.style.display = textureToggle.checked ? 'flex' : 'none';
   });
+  $('expertToggle').addEventListener('click', () => {
+    $('expertSection').classList.toggle('open');
+  });
   $('btnKill').addEventListener('click', async () => {
     try {
       await fetch(`${API_BASE}/api/interrupt`, { method: 'POST' });
@@ -1429,6 +1536,20 @@ async function startGeneration() {
     "inputs": { "image": comfyInputImage }
   };
 
+  // Expert: optional white background composite
+  let imageSourceId = loadImageId;
+  if ($('whiteBgToggle').checked) {
+    const splitId = String(nextNodeId++);
+    workflow[splitId] = { "class_type": "SplitImageWithAlpha", "inputs": { "image": [loadImageId, 0] } };
+    const whiteId = String(nextNodeId++);
+    workflow[whiteId] = { "class_type": "EmptyImage", "inputs": { "width": 518, "height": 518, "batch_size": 1, "color": 16777215 } };
+    const compId = String(nextNodeId++);
+    workflow[compId] = { "class_type": "ImageCompositeMasked", "inputs": {
+      "destination": [whiteId, 0], "source": [splitId, 0], "mask": [splitId, 1], "x": 0, "y": 0, "resize_source": true
+    }};
+    imageSourceId = compId;
+  }
+
   // Hy3DModelLoader
   const modelLoaderId = String(nextNodeId++);
   workflow[modelLoaderId] = {
@@ -1445,7 +1566,7 @@ async function startGeneration() {
     "class_type": "Hy3DGenerateMesh",
     "inputs": {
       "pipeline": [modelLoaderId, 0],
-      "image": [loadImageId, 0],
+      "image": [imageSourceId, 0],
       "steps": steps,
       "guidance_scale": guidance,
       "seed": seed
@@ -1459,11 +1580,11 @@ async function startGeneration() {
     "inputs": {
       "vae": [modelLoaderId, 1],
       "latents": [generateId, 0],
-      "box_v": 1.01,
+      "box_v": parseFloat($('boxVInput').value) || 1.01,
       "octree_resolution": octree,
       "num_chunks": numChunks,
       "mc_level": 0,
-      "mc_algo": "mc"
+      "mc_algo": $('mcAlgoSelect').value || "mc"
     }
   };
 
@@ -1522,7 +1643,7 @@ async function startGeneration() {
       "class_type": "Hy3DSampleMultiView",
       "inputs": {
         "pipeline": [paintModelId, 0],
-        "ref_image": [loadImageId, 0],
+        "ref_image": [imageSourceId, 0],
         "normal_maps": [renderMvId, 0],
         "position_maps": [renderMvId, 1],
         "view_size": 512,
