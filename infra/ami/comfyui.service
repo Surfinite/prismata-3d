@@ -7,6 +7,7 @@ Type=simple
 User=comfyui
 Group=comfyui
 WorkingDirectory=/opt/comfyui
+ExecStartPre=/bin/bash -c 'aws s3 cp s3://prismata-3d-models/frontend/index.html /opt/comfyui/custom_nodes/fabricate/web/index.html --region us-east-1 && aws s3 cp s3://prismata-3d-models/scripts/fabricate_init.py /opt/comfyui/custom_nodes/fabricate/__init__.py --region us-east-1 && chown -R comfyui:comfyui /opt/comfyui/custom_nodes/fabricate/ || true'
 ExecStart=/opt/comfyui-env/bin/python main.py --listen 0.0.0.0 --port 8188 --preview-method auto
 Environment=PYTHONUNBUFFERED=1
 Environment=HOME=/opt/comfyui-home
