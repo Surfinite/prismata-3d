@@ -106,6 +106,9 @@ $SSH "sudo bash /tmp/install-comfyui.sh"
 echo "--- Installing asset data ---"
 $SSH "sudo bash /tmp/install-assets.sh"
 
+echo "--- Installing boto3 in ComfyUI venv (for S3 API) ---"
+$SSH "sudo /opt/comfyui-env/bin/pip install boto3 -q"
+
 echo "--- Installing Fabrication Terminal frontend ---"
 $SSH "sudo bash /tmp/install-frontend.sh"
 

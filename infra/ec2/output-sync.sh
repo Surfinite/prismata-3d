@@ -55,7 +55,7 @@ while true; do
 
         echo "Uploading $filename → $s3_path"
         if aws s3 cp "$filepath" "$s3_path" --region "$REGION" 2>/dev/null; then
-            # Create metadata
+            # Start with basic metadata
             meta=$(cat <<METAEOF
 {
   "unit": "$unit",
@@ -67,6 +67,22 @@ while true; do
 }
 METAEOF
 )
+            # Merge generation params sidecar if the frontend wrote one
+            params_file="$WATCH_DIR/$filename.params.json"
+            if [ -f "$params_file" ]; then
+                # Merge: params file is authoritative, add file_size_bytes from stat
+                meta=$(python3 -c "
+import json, sys
+base = json.loads(sys.argv[1])
+with open('$params_file') as f:
+    params = json.load(f)
+params['file_size_bytes'] = base['file_size_bytes']
+params['upload_timestamp'] = base['timestamp']
+print(json.dumps(params, indent=2))
+" "$meta" 2>/dev/null || echo "$meta")
+                rm -f "$params_file"
+                echo "  Merged generation params from sidecar"
+            fi
             echo "$meta" | aws s3 cp - "$S3_BUCKET/models/$unit/$skin/$filename.meta.json" \
                 --region "$REGION" --content-type "application/json" 2>/dev/null || true
 
