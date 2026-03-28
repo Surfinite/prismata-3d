@@ -674,6 +674,12 @@ model-viewer::part(default-progress-bar) {
 
 .gen-meta.visible { display: block; }
 
+/* ── TOOLTIPS ── */
+label[title], .toggle-label[title], span[title] {
+  cursor: help;
+  border-bottom: 1px dotted var(--text-secondary);
+}
+
 /* ── ADVANCED SECTION (collapsible) ── */
 .section-advanced {
   background: var(--bg-panel);
@@ -886,21 +892,30 @@ model-viewer::part(default-progress-bar) {
 
       <!-- Generation Settings -->
       <div class="section">
-        <div class="section-header">Generation Settings</div>
+        <div class="section-header" style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:8px"><span style="content:'';width:3px;height:14px;background:var(--accent);border-radius:1px;box-shadow:0 0 8px var(--accent-glow);display:inline-block"></span>Generation Settings</span>
+          <div class="toggle-row" style="gap:8px">
+            <span class="toggle-label" style="font-size:11px;color:var(--accent)" title="Sets steps=15, octree=128, cleanup=off for ~30s generations">Fast</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="fastToggle">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+        </div>
         <div class="section-body">
           <div class="param-row">
             <div class="param-group">
-              <label for="stepsInput">Steps</label>
+              <label for="stepsInput" title="Number of diffusion steps. More steps = better quality but slower. 15-20 for speed, 30-50 for quality.">Steps</label>
               <input type="number" id="stepsInput" value="20" min="5" max="50" step="1">
             </div>
             <div class="param-group">
-              <label for="guidanceInput">Guidance Scale</label>
+              <label for="guidanceInput" title="How closely the model follows the input image. 3-4 = creative/loose, 5.5 = balanced, 6-8 = faithful to input.">Guidance Scale</label>
               <input type="number" id="guidanceInput" value="5.5" min="1" max="15" step="0.5">
             </div>
           </div>
           <div class="param-row">
             <div class="param-group">
-              <label for="octreeInput">Octree Resolution</label>
+              <label for="octreeInput" title="Mesh detail level for marching cubes. 128 = fast/low detail, 256 = standard, 384 = high detail/slow.">Octree Resolution</label>
               <select id="octreeInput">
                 <option value="128">128 — Fast</option>
                 <option value="256" selected>256 — Standard</option>
@@ -908,7 +923,7 @@ model-viewer::part(default-progress-bar) {
               </select>
             </div>
             <div class="param-group">
-              <label for="seedInput">Seed</label>
+              <label for="seedInput" title="Random seed for reproducibility. Same seed + same settings = same output. Change to get different variations.">Seed</label>
               <div class="seed-row">
                 <input type="number" id="seedInput" value="42" min="0" max="999999999">
                 <button class="btn-randomize" id="btnRandomize" title="Randomize seed">&#x21bb;</button>
@@ -930,14 +945,14 @@ model-viewer::part(default-progress-bar) {
             <!-- Model -->
             <div class="subsection-label">Model</div>
             <div>
-              <label for="modelSelect">Model Variant</label>
+              <label for="modelSelect" title="v2.0 = best quality (~16GB VRAM, ~20s). v2-mini Turbo = fast preview (~5GB, ~5s) but needs download on first use.">Model Variant</label>
               <select id="modelSelect">
                 <option value="hunyuan3d/hunyuan3d-dit-v2-0-fp16.safetensors" selected>v2.0 — Best Quality</option>
                 <option value="hunyuan3d/hunyuan3d-dit-v2-mini-Turbo-fp16.safetensors">v2-mini Turbo — Fast Preview</option>
               </select>
             </div>
             <div>
-              <label for="attentionSelect">Attention Mechanism</label>
+              <label for="attentionSelect" title="GPU attention implementation. SDPA is default and stable. Flash Attention 2 may be faster on supported GPUs.">Attention Mechanism</label>
               <select id="attentionSelect">
                 <option value="sdpa" selected>SDPA (Default)</option>
                 <option value="flash_attention_2">Flash Attention 2</option>
@@ -948,11 +963,11 @@ model-viewer::part(default-progress-bar) {
             <div class="subsection-label">Mesh Quality</div>
             <div class="param-row">
               <div class="param-group">
-                <label for="numChunksInput">Num Chunks</label>
+                <label for="numChunksInput" title="Number of chunks for VAE decoding. Higher = faster but uses more GPU memory. 8000 is a good default.">Num Chunks</label>
                 <input type="number" id="numChunksInput" value="8000" min="1000" max="30000" step="1000">
               </div>
               <div class="param-group">
-                <label for="targetVertexInput">Target Vertices</label>
+                <label for="targetVertexInput" title="Max face count for mesh simplification. 50000 = detailed, 5000 = game-ready low-poly. Only applies when Cleanup Mesh is on.">Target Vertices</label>
                 <input type="number" id="targetVertexInput" value="50000" min="1000" max="200000" step="1000">
               </div>
             </div>
@@ -984,7 +999,7 @@ model-viewer::part(default-progress-bar) {
             </div>
             <div id="textureSettings" style="display:none;flex-direction:column;gap:12px">
               <div>
-                <label for="paintModelSelect">Paint Model</label>
+                <label for="paintModelSelect" title="Model for texture generation. v2.0 = best quality, Turbo = faster but lower quality. Auto-downloads on first use (~5 min).">Paint Model</label>
                 <select id="paintModelSelect">
                   <option value="hunyuan3d-paint-v2-0" selected>v2.0 — Best Quality</option>
                   <option value="hunyuan3d-paint-v2-0-turbo">v2.0 Turbo — Faster</option>
@@ -992,11 +1007,11 @@ model-viewer::part(default-progress-bar) {
               </div>
               <div class="param-row">
                 <div class="param-group">
-                  <label for="cvKernelInput">Inpaint Kernel</label>
+                  <label for="cvKernelInput" title="Radius for OpenCV inpainting pass. Fills small gaps in the baked texture. 3 is a good default.">Inpaint Kernel</label>
                   <input type="number" id="cvKernelInput" value="3" min="1" max="11" step="2">
                 </div>
                 <div class="param-group">
-                  <label for="cvMethodSelect">Inpaint Method</label>
+                  <label for="cvMethodSelect" title="Inpainting algorithm. Navier-Stokes is smoother, Telea is faster. Both work well.">Inpaint Method</label>
                   <select id="cvMethodSelect">
                     <option value="ns" selected>Navier-Stokes</option>
                     <option value="telea">Telea</option>
@@ -1265,6 +1280,20 @@ function bindEvents() {
   });
   textureToggle.addEventListener('change', () => {
     textureSettings.style.display = textureToggle.checked ? 'flex' : 'none';
+  });
+  const fastToggle = $('fastToggle');
+  fastToggle.addEventListener('change', () => {
+    if (fastToggle.checked) {
+      stepsInput.value = 15;
+      octreeInput.value = '128';
+      postprocessToggle.checked = false;
+      textureToggle.checked = false;
+      textureSettings.style.display = 'none';
+    } else {
+      stepsInput.value = 20;
+      octreeInput.value = '256';
+      postprocessToggle.checked = true;
+    }
   });
 }
 
