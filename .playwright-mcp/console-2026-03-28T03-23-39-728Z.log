@@ -1,0 +1,13 @@
+[     158ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[   15170ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[   30173ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[   45170ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[   60173ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[   75171ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[   90174ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[  105170ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[  112528ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/view?filename=prismata-assets%2Funits%2F1-apollo%2FRegular.png&type=input:0
+[  120172ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[  123480ms] [ERROR] Failed to load resource: the server responded with a status of 501 (Unsupported method ('POST')) @ http://localhost:8765/api/prompt:0
+[  135169ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[  150171ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
