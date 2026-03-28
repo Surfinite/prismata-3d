@@ -13,11 +13,11 @@ check() {
     local output
     if output=$("$@" 2>&1); then
         echo "  PASS: $desc"
-        ((PASS++))
+        PASS=$((PASS + 1))
     else
         echo "  FAIL: $desc"
         echo "        $output" | head -3
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
     fi
 }
 
@@ -57,13 +57,13 @@ systemctl start comfyui
 for i in $(seq 1 60); do
     if curl -sf http://localhost:8188/system_stats > /dev/null 2>&1; then
         echo "  PASS: ComfyUI responds on port 8188 (took ${i}s)"
-        ((PASS++))
+        PASS=$((PASS + 1))
         break
     fi
     sleep 2
     if [ "$i" -eq 60 ]; then
         echo "  FAIL: ComfyUI did not respond within 120s"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
     fi
 done
 systemctl stop comfyui
