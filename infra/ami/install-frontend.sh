@@ -100,22 +100,26 @@ async def s3_check(request):
 
 @PromptServer.instance.routes.get("/fabricate/api/s3-model/{unit}/{skin}")
 async def s3_model(request):
-    """Download latest model from S3 and serve it."""
+    """Download a model from S3. Uses 'filename' param if provided, otherwise latest."""
     unit = request.match_info["unit"]
     skin = request.match_info["skin"]
     fmt = request.query.get("format", "glb")
+    filename = request.query.get("filename", "")
     try:
         s3 = _s3()
-        key = f"models/{unit}/{skin}/latest.{fmt}"
+        if filename and ".." not in filename and "/" not in filename:
+            key = f"models/{unit}/{skin}/{filename}"
+        else:
+            key = f"models/{unit}/{skin}/latest.{fmt}"
         obj = s3.get_object(Bucket=S3_BUCKET, Key=key)
         body = obj["Body"].read()
         content_type = "model/gltf-binary" if fmt == "glb" else "application/octet-stream"
+        dl_name = filename if filename else f"latest.{fmt}"
         return web.Response(body=body, content_type=content_type,
-                          headers={"Content-Disposition": f"inline; filename=latest.{fmt}"})
-    except s3.exceptions.NoSuchKey:
-        return web.Response(status=404, text="No model found")
+                          headers={"Content-Disposition": f"inline; filename={dl_name}"})
     except Exception as e:
-        return web.Response(status=500, text=str(e))
+        status = 404 if "NoSuchKey" in str(type(e).__name__) else 500
+        return web.Response(status=status, text=str(e))
 
 @PromptServer.instance.routes.get("/fabricate/api/s3-list")
 async def s3_list_all(request):
@@ -154,6 +158,23 @@ async def s3_favorite(request):
         key = f"favorites/{unit}/{skin}/{filename}.fav.json"
         s3.put_object(Bucket=S3_BUCKET, Key=key, Body=json.dumps(fav, indent=2),
                      ContentType="application/json")
+        return web.json_response({"ok": True})
+    except Exception as e:
+        return web.Response(status=500, text=str(e))
+
+@PromptServer.instance.routes.post("/fabricate/api/unfavorite")
+async def s3_unfavorite(request):
+    """Remove a favorite from S3."""
+    try:
+        data = await request.json()
+        unit = data.get("unit", "")
+        skin = data.get("skin", "")
+        filename = data.get("filename", "")
+        if not unit or not skin or not filename:
+            return web.Response(status=400, text="Missing fields")
+        s3 = _s3()
+        key = f"favorites/{unit}/{skin}/{filename}.fav.json"
+        s3.delete_object(Bucket=S3_BUCKET, Key=key)
         return web.json_response({"ok": True})
     except Exception as e:
         return web.Response(status=500, text=str(e))
