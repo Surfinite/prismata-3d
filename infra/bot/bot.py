@@ -103,13 +103,15 @@ async def _launch_and_wait(ctx, launch_fn, label):
                     tunnel_url = param["Parameter"]["Value"]
                     await ctx.send(
                         f"Ready! Instance `{instance_id}` running.\n"
-                        f"Open: **{tunnel_url}**"
+                        f"Open: **{tunnel_url}**\n"
+                        f"Auto-shutdown after 10 min idle."
                     )
                 except Exception:
                     ip = inst.get("PublicIpAddress", "unknown")
                     await ctx.send(
                         f"Instance `{instance_id}` running at IP `{ip}`.\n"
-                        f"Tunnel URL not yet available — check `!status` in a minute."
+                        f"Tunnel URL not yet available — check `!status` in a minute.\n"
+                        f"Auto-shutdown after 10 min idle."
                     )
                 return
 
