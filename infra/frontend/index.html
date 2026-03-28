@@ -671,7 +671,7 @@ model-viewer::part(default-progress-bar) {
 /* ── GENERATION METADATA OVERLAY ── */
 .gen-meta {
   position: absolute;
-  bottom: 10px;
+  bottom: 52px;
   left: 16px;
   z-index: 2;
   font-family: var(--mono);
@@ -1422,14 +1422,42 @@ async function startGeneration() {
   let nextNodeId = 1;
   const workflow = {};
 
-  // Node 1: LoadImage
+  // Node: LoadImage (raw sprite with alpha)
   const loadImageId = String(nextNodeId++);
   workflow[loadImageId] = {
     "class_type": "LoadImage",
     "inputs": { "image": comfyInputImage }
   };
 
-  // Node 2: Hy3DModelLoader
+  // Composite sprite onto white background (model expects white bg, not transparent)
+  const splitAlphaId = String(nextNodeId++);
+  workflow[splitAlphaId] = {
+    "class_type": "SplitImageWithAlpha",
+    "inputs": { "image": [loadImageId, 0] }
+  };
+  // Outputs: [0]=RGB, [1]=alpha mask
+
+  const whiteBgId = String(nextNodeId++);
+  workflow[whiteBgId] = {
+    "class_type": "EmptyImage",
+    "inputs": { "width": 518, "height": 518, "batch_size": 1, "color": 16777215 }
+  };
+
+  const compositeId = String(nextNodeId++);
+  workflow[compositeId] = {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [whiteBgId, 0],
+      "source": [splitAlphaId, 0],
+      "mask": [splitAlphaId, 1],
+      "x": 0,
+      "y": 0,
+      "resize_source": true
+    }
+  };
+  // compositeId output [0] = sprite on white background
+
+  // Hy3DModelLoader
   const modelLoaderId = String(nextNodeId++);
   workflow[modelLoaderId] = {
     "class_type": "Hy3DModelLoader",
@@ -1445,7 +1473,7 @@ async function startGeneration() {
     "class_type": "Hy3DGenerateMesh",
     "inputs": {
       "pipeline": [modelLoaderId, 0],
-      "image": [loadImageId, 0],
+      "image": [compositeId, 0],
       "steps": steps,
       "guidance_scale": guidance,
       "seed": seed
@@ -1522,7 +1550,7 @@ async function startGeneration() {
       "class_type": "Hy3DSampleMultiView",
       "inputs": {
         "pipeline": [paintModelId, 0],
-        "ref_image": [loadImageId, 0],
+        "ref_image": [compositeId, 0],
         "normal_maps": [renderMvId, 0],
         "position_maps": [renderMvId, 1],
         "view_size": 512,
