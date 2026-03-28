@@ -634,6 +634,136 @@ model-viewer::part(default-progress-bar) {
   white-space: nowrap;
 }
 
+/* ── STAR / FAVORITE ── */
+.preview-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-star-inline {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s;
+  opacity: 0.4;
+}
+.btn-star-inline:disabled {
+  opacity: 0.15;
+  cursor: not-allowed;
+}
+.btn-star-inline:hover:not(:disabled) {
+  color: #ffd700;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+.btn-star-inline.starred {
+  color: #ffd700;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+.btn-thumbsdown {
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 10px;
+  color: var(--text-secondary);
+}
+.btn-thumbsdown.thumbed {
+  color: var(--error) !important;
+  border-color: rgba(255, 71, 87, 0.4) !important;
+}
+.btn-thumbsdown:hover:not(:disabled) {
+  color: var(--error) !important;
+  border-color: rgba(255, 71, 87, 0.4) !important;
+}
+
+/* ── HISTORY STRIP ── */
+.history-strip {
+  border-top: 1px solid var(--border);
+  padding: 6px 12px 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+.history-strip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.history-strip-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.history-strip-favs-btn {
+  background: none;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 3px;
+  color: #ffd700;
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.history-strip-favs-btn:hover {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: #ffd700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+.history-strip-inner {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.history-card {
+  flex-shrink: 0;
+  width: 90px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px;
+  background: var(--bg-input);
+  transition: all 0.2s;
+  position: relative;
+}
+.history-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.history-card.active {
+  border-color: var(--accent);
+}
+.history-card-img {
+  width: 100%;
+  height: 50px;
+  object-fit: contain;
+  border-radius: 2px;
+}
+.history-card-label {
+  font-size: 9px;
+  font-family: var(--mono);
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.history-card-star {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
+  color: #ffd700;
+  text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
+}
+
 /* ── JOB LOG ── */
 .job-log {
   max-height: 0;
@@ -671,18 +801,18 @@ model-viewer::part(default-progress-bar) {
 /* ── GENERATION METADATA OVERLAY ── */
 .gen-meta {
   position: absolute;
-  bottom: 52px;
-  left: 16px;
+  top: 48px;
+  left: 0;
+  right: 0;
   z-index: 2;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
-  line-height: 1.6;
-  background: rgba(10, 14, 20, 0.8);
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
+  text-align: center;
+  padding: 4px 12px;
+  opacity: 0.5;
   display: none;
+  pointer-events: none;
 }
 
 .gen-meta.visible { display: block; }
@@ -707,7 +837,7 @@ label[title], .toggle-label[title], span[title] {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 10px 14px;
+  padding: 10px 12px 10px 14px;
   background: linear-gradient(90deg, rgba(255, 107, 53, 0.04), transparent);
   border: none;
   border-bottom: 1px solid transparent;
@@ -749,19 +879,99 @@ label[title], .toggle-label[title], span[title] {
   background: linear-gradient(90deg, rgba(255, 107, 53, 0.08), transparent);
 }
 
-.advanced-toggle-arrow {
+.section-toggle-row {
+  display: flex;
+  align-items: stretch;
+}
+.section-toggle-row .advanced-toggle {
+  flex: 1;
+  min-width: 0;
+}
+.section-reset {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  width: 38px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.35;
+}
+.section-reset:hover {
+  color: var(--accent);
+  opacity: 1;
+}
+.reset-all {
+  width: 42px;
+  height: auto;
+  flex-shrink: 0;
+  font-size: 18px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+.reset-all:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+.batch-toggle {
+  color: var(--accent) !important;
+}
+.batch-toggle::before {
+  background: var(--accent) !important;
+}
+
+.batch-unit-list label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 2px;
+}
+.batch-unit-list label:hover {
+  background: rgba(0, 245, 212, 0.05);
+  color: var(--text-primary);
+}
+.batch-unit-list label.has-model {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+.batch-unit-list label.has-model::after {
+  content: '(exists)';
+  font-size: 10px;
+  color: var(--success);
+  margin-left: auto;
+}
+
+.toggle-arrow, .advanced-toggle-arrow {
   font-size: 11px;
   transition: transform 0.3s;
   color: var(--text-secondary);
 }
 
 .section-advanced.open .advanced-toggle {
-  border-bottom-color: var(--border);
+  border-bottom-color: transparent;
 }
 
+.section-advanced.open .toggle-arrow,
 .section-advanced.open .advanced-toggle-arrow {
   transform: rotate(180deg);
 }
+
 
 .advanced-body {
   max-height: 0;
@@ -963,10 +1173,13 @@ label[title], .toggle-label[title], span[title] {
 
       <!-- Advanced Settings -->
       <div class="section-advanced" id="advancedSection">
-        <button class="advanced-toggle" id="advancedToggle">
-          <span>Advanced Settings</span>
-          <span class="advanced-toggle-arrow">&#x25BC;</span>
-        </button>
+        <div class="section-toggle-row">
+          <button class="advanced-toggle" id="advancedToggle">
+            <span>Advanced Settings</span>
+            <span class="toggle-arrow">&#9660;</span>
+          </button>
+          <button class="section-reset" id="resetAdvanced" title="Reset Advanced Settings to defaults">&#8635;</button>
+        </div>
         <div class="advanced-body">
           <div class="advanced-body-inner">
 
@@ -1079,10 +1292,13 @@ label[title], .toggle-label[title], span[title] {
 
       <!-- Expert Settings -->
       <div class="section-advanced" id="expertSection">
-        <button class="advanced-toggle expert-toggle" id="expertToggle">
-          <span>Expert Only</span>
-          <span class="advanced-toggle-arrow">&#x25BC;</span>
-        </button>
+        <div class="section-toggle-row">
+          <button class="advanced-toggle expert-toggle" id="expertToggle">
+            <span>Expert Only</span>
+            <span class="toggle-arrow">&#9660;</span>
+          </button>
+          <button class="section-reset" id="resetExpert" title="Reset Expert Settings to defaults">&#8635;</button>
+        </div>
         <div class="advanced-body">
           <div class="advanced-body-inner">
 
@@ -1140,16 +1356,57 @@ label[title], .toggle-label[title], span[title] {
       </div>
 
       <!-- Generate -->
-      <button class="btn-generate" id="btnGenerate" disabled>
-        Fabricate Unit
-      </button>
+      <div style="display:flex;gap:8px;align-items:stretch;">
+        <button class="btn-generate" id="btnGenerate" disabled style="flex:1;">
+          Fabricate Unit
+        </button>
+        <button class="section-reset reset-all" id="resetAll" title="Reset all settings to defaults">&#8635;</button>
+      </div>
+
+      <!-- Batch Mode -->
+      <div class="section-card">
+        <button class="advanced-toggle batch-toggle" id="batchToggle" type="button">
+          <span>Batch Fabricate</span>
+          <span class="toggle-arrow">&#9660;</span>
+        </button>
+        <div class="section-content" id="batchSection" style="display:none;">
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <button class="btn-action" id="batchSelectAll" type="button" style="flex:1;">Select All</button>
+            <button class="btn-action" id="batchSelectNone" type="button" style="flex:1;">Select None</button>
+          </div>
+          <div class="batch-filter" style="margin-bottom:8px;">
+            <input type="text" id="batchFilter" placeholder="Filter units..." style="width:100%; padding:6px 10px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary); font-family:var(--mono); font-size:12px;">
+          </div>
+          <div class="batch-unit-list" id="batchUnitList" style="max-height:200px; overflow-y:auto; border:1px solid var(--border); border-radius:3px; padding:4px;">
+          </div>
+          <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary);">
+              <input type="checkbox" id="batchSkipExisting" checked> Skip existing (S3)
+            </label>
+          </div>
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <button class="btn-generate" id="btnBatchStart" style="flex:1; padding:10px;" disabled>
+              Start Batch
+            </button>
+            <button class="btn-action btn-danger" id="btnBatchStop" style="padding:10px; display:none;">
+              Stop
+            </button>
+          </div>
+          <div class="batch-status" id="batchStatus" style="display:none; margin-top:8px; font-size:12px; color:var(--text-secondary); font-family:var(--mono);">
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ──── RIGHT: 3D Preview ──── -->
     <div class="preview-panel">
       <div class="preview-header">
-        <span class="preview-title" id="previewTitle">3D Preview</span>
+        <div class="preview-title-group">
+          <button class="btn-star-inline" id="btnStar" title="Favorite this model" disabled>&#9734;</button>
+          <span class="preview-title" id="previewTitle">3D Preview</span>
+        </div>
         <div class="preview-actions">
+          <button class="btn-action btn-thumbsdown" id="btnThumbsDown" title="Mark as bad generation" disabled>&#128078;</button>
           <button class="btn-action btn-danger" id="btnKill" title="Interrupt the currently running generation">Kill</button>
           <button class="btn-action btn-danger" id="btnClearQueue" title="Remove all pending jobs from the queue">Clear Queue</button>
           <a class="btn-action" id="btnDownload" disabled href="#" download>
@@ -1169,6 +1426,14 @@ label[title], .toggle-label[title], span[title] {
       </div>
 
       <div class="gen-meta" id="genMeta"></div>
+
+      <div class="history-strip" id="historyStrip" style="display:none;">
+        <div class="history-strip-header">
+          <span class="history-strip-title">Session History</span>
+          <button class="history-strip-favs-btn" id="btnViewFavorites" title="View all favorited models across all sessions">&#9733; Favorites</button>
+        </div>
+        <div class="history-strip-inner" id="historyStripInner"></div>
+      </div>
 
       <div class="job-log" id="jobLog">
         <div class="job-log-inner" id="jobLogInner"></div>
@@ -1201,6 +1466,9 @@ let pollInterval = null;
 let ws = null;
 let nodeStageMap = {}; // maps node ID → friendly stage name
 let currentOutputPrefix = null;
+let currentGenParams = null;
+let stageIndex = 0;
+let stageTotal = 0;
 let genStartTime = null;
 let elapsedInterval = null;
 let modelViewerEl = null;
@@ -1248,10 +1516,11 @@ const cvKernelInput = $('cvKernelInput');
 const cvMethodSelect = $('cvMethodSelect');
 
 // ── WebSocket for real-time progress ──
+const wsClientId = crypto.randomUUID();
+
 function connectWebSocket() {
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const clientId = crypto.randomUUID();
-  const wsUrl = `${wsProto}//${location.host}/ws?clientId=${clientId}`;
+  const wsUrl = `${wsProto}//${location.host}/ws?clientId=${wsClientId}`;
 
   try {
     ws = new WebSocket(wsUrl);
@@ -1278,8 +1547,10 @@ function handleWsMessage(msg) {
       // Execution complete
       return;
     }
+    stageIndex++;
     const stage = nodeStageMap[nodeId] || `Node ${nodeId}`;
-    setStatus(`${stage}...`, 'working');
+    const counter = stageTotal > 0 ? `[${stageIndex}/${stageTotal}] ` : '';
+    setStatus(`${counter}${stage}...`, 'working');
     log(`Stage: ${stage}`);
   }
 
@@ -1291,7 +1562,8 @@ function handleWsMessage(msg) {
       progressFill.style.width = `${pct}%`;
       const nodeId = msg.data.node;
       const stage = nodeStageMap[nodeId] || 'Processing';
-      setStatus(`${stage}... ${value}/${max}`, 'working');
+      const counter = stageTotal > 0 ? `[${stageIndex}/${stageTotal}] ` : '';
+      setStatus(`${counter}${stage}... ${value}/${max}`, 'working');
     }
   }
 
@@ -1360,6 +1632,8 @@ async function reconnectToRunningJobs() {
     currentPromptId = promptId;
     currentExportNodeId = exportNodeId;
     currentOutputPrefix = prefix;
+    stageIndex = 0;
+    stageTotal = Object.keys(nodeStageMap).length;
 
     const isRunning = running.length > 0;
     const label = prefix ? prefix.replace(/_3d$/, '').replace(/_/g, ' ') : 'Unknown';
@@ -1481,7 +1755,8 @@ async function tryPreloadModel(unit, skin) {
   if (currentPromptId) return; // don't override active generation
   const prefix = `${unit}_${skin}_3d`;
   const fmt = formatSelect.value || 'glb';
-  // Try counter values from high to low to find the most recent
+
+  // 1. Check local output dir first (faster)
   for (let i = 10; i >= 1; i--) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
@@ -1494,6 +1769,23 @@ async function tryPreloadModel(unit, skin) {
       }
     } catch {}
   }
+
+  // 2. Check S3 for previously generated models
+  try {
+    const resp = await fetch(`${API_BASE}/fabricate/api/s3-check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.exists && data.files?.length > 0) {
+        // Load from S3 via proxy
+        const s3Url = `${API_BASE}/fabricate/api/s3-model/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?format=${fmt}`;
+        loadModelFromUrl(s3Url, `${unit}_${skin}_latest.${fmt}`);
+        previewTitle.textContent = `${formatUnitName(unit)} — ${skin} (S3)`;
+        // Store metadata if available
+        if (data.meta) currentGenParams = data.meta;
+        return;
+      }
+    }
+  } catch {}
   // No previous generation found — that's fine, leave preview empty
 }
 
@@ -1558,6 +1850,42 @@ function bindEvents() {
       postprocessToggle.checked = true;
     }
   });
+
+  // Reset buttons
+  function resetGeneration() {
+    stepsInput.value = 20;
+    guidanceInput.value = 5.5;
+    octreeInput.value = '256';
+    seedInput.value = 42;
+    $('fastToggle').checked = false;
+  }
+
+  function resetAdvanced() {
+    modelSelect.value = 'hunyuan3d/hunyuan3d-dit-v2-0-fp16.safetensors';
+    attentionSelect.value = 'sdpa';
+    numChunksInput.value = 8000;
+    targetVertexInput.value = 50000;
+    postprocessToggle.checked = true;
+    textureToggle.checked = false;
+    textureSettings.style.display = 'none';
+    paintModelSelect.value = 'hunyuan3d-paint-v2-0';
+    cvKernelInput.value = 3;
+    cvMethodSelect.value = 'ns';
+    formatSelect.value = 'glb';
+    $('embedTextures').checked = true;
+  }
+
+  function resetExpert() {
+    $('whiteBgToggle').checked = false;
+    $('boxVInput').value = 1.01;
+    $('mcAlgoSelect').value = 'mc';
+    $('flashVdmToggle').checked = true;
+    $('forceOffloadToggle').checked = true;
+  }
+
+  $('resetAdvanced').addEventListener('click', (e) => { e.stopPropagation(); resetAdvanced(); });
+  $('resetExpert').addEventListener('click', (e) => { e.stopPropagation(); resetExpert(); });
+  $('resetAll').addEventListener('click', () => { resetGeneration(); resetAdvanced(); resetExpert(); });
 }
 
 // ── Generation ──
@@ -1583,6 +1911,20 @@ async function startGeneration() {
   const doPostprocess = postprocessToggle.checked;
   const targetVerts = parseInt(targetVertexInput.value) || 50000;
   const fileFormat = formatSelect.value;
+  const doTexture = textureToggle.checked;
+
+  // Save generation params for metadata sidecar
+  currentGenParams = {
+    unit, skin, steps, guidance_scale: guidance, seed, octree_resolution: octree,
+    model, attention, num_chunks: numChunks,
+    postprocess: doPostprocess, target_vertices: doPostprocess ? targetVerts : null,
+    texture: doTexture,
+    paint_model: doTexture ? paintModelSelect.value : null,
+    file_format: fileFormat,
+    white_bg: $('whiteBgToggle').checked,
+    fast_mode: $('fastToggle').checked,
+    timestamp: new Date().toISOString()
+  };
 
   // Build the API workflow (multi-stage pipeline with optional postprocessing)
   let nextNodeId = 1;
@@ -1597,6 +1939,7 @@ async function startGeneration() {
 
   // Expert: optional white background composite
   let imageSourceId = loadImageId;
+  let alphaMaskId = null;
   if ($('whiteBgToggle').checked) {
     const splitId = String(nextNodeId++);
     workflow[splitId] = { "class_type": "SplitImageWithAlpha", "inputs": { "image": [loadImageId, 0] } };
@@ -1619,7 +1962,7 @@ async function startGeneration() {
     }
   };
 
-  // Node 3: Hy3DGenerateMesh
+  // Node: Hy3DGenerateMesh
   const generateId = String(nextNodeId++);
   workflow[generateId] = {
     "class_type": "Hy3DGenerateMesh",
@@ -1670,7 +2013,6 @@ async function startGeneration() {
   }
 
   // Texture pipeline (optional): UVWrap → PaintModel → BakeMultiview → Inpaint → CV2Inpaint → ApplyTexture
-  const doTexture = textureToggle.checked;
   if (doTexture) {
     // UV Unwrap
     const uvWrapId = String(nextNodeId++);
@@ -1797,6 +2139,9 @@ async function startGeneration() {
     nodeStageMap[id] = names[node.class_type] || node.class_type;
   }
 
+  stageIndex = 0;
+  stageTotal = Object.keys(nodeStageMap).length;
+
   setGenerating(true, `Fabricating ${formatUnitName(unit)} [${skin}]...`);
   const advSettings = doPostprocess ? ` postprocess=on verts=${targetVerts}` : '';
   const texInfo = doTexture ? ` texture=on paint=${paintModelSelect.value.replace('hunyuan3d-paint-','')}` : '';
@@ -1809,7 +2154,7 @@ async function startGeneration() {
     const resp = await fetch(`${API_BASE}/api/prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: workflow })
+      body: JSON.stringify({ prompt: workflow, client_id: wsClientId })
     });
 
     if (!resp.ok) {
@@ -1899,6 +2244,9 @@ async function pollHistory() {
 
       if (glbFile) {
         log('Generation complete: ' + glbFile, 'success');
+        saveMetadata(glbFile);
+        const glbUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(glbFile)}&type=output`;
+        addToHistory(unitSelect.value, skinSelect.value, glbUrl, glbFile, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
         loadModel(glbFile);
@@ -1933,6 +2281,9 @@ async function findOutputFile(prefix) {
       const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: ' + filename, 'success');
+        saveMetadata(filename);
+        const foundUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`;
+        addToHistory(unitSelect.value, skinSelect.value, foundUrl, filename, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
         loadModel(filename);
@@ -1948,6 +2299,9 @@ async function findOutputFile(prefix) {
       const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: 3D/' + filename, 'success');
+        saveMetadata(filename);
+        const found3dUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`;
+        addToHistory(unitSelect.value, skinSelect.value, found3dUrl, filename, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
         loadModel(filename, '3D');
@@ -1963,7 +2317,10 @@ async function findOutputFile(prefix) {
 function loadModel(filename, subfolder) {
   let modelUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`;
   if (subfolder) modelUrl += `&subfolder=${encodeURIComponent(subfolder)}`;
+  loadModelFromUrl(modelUrl, filename);
+}
 
+function loadModelFromUrl(modelUrl, filename) {
   // Remove old model-viewer if present
   if (modelViewerEl) {
     modelViewerEl.remove();
@@ -1977,33 +2334,66 @@ function loadModel(filename, subfolder) {
   modelViewerEl.setAttribute('alt', `3D model of ${unitSelect.value}`);
   modelViewerEl.setAttribute('camera-controls', '');
   modelViewerEl.setAttribute('auto-rotate', '');
-  modelViewerEl.setAttribute('shadow-intensity', '0.5');
-  modelViewerEl.setAttribute('exposure', '1.2');
+  modelViewerEl.setAttribute('shadow-intensity', '1');
+  modelViewerEl.setAttribute('shadow-softness', '0.5');
+  modelViewerEl.setAttribute('exposure', '1');
   modelViewerEl.setAttribute('environment-image', 'neutral');
+  modelViewerEl.setAttribute('tone-mapping', 'commerce');
   modelViewerEl.style.width = '100%';
   modelViewerEl.style.height = '100%';
   modelViewerEl.style.background = 'transparent';
   previewViewport.appendChild(modelViewerEl);
 
+  // For untextured meshes: apply clay material so geometry detail is visible
+  modelViewerEl.addEventListener('load', () => {
+    const wasTextured = currentGenParams?.texture === true;
+    if (wasTextured) return;
+
+    const model = modelViewerEl.model;
+    if (!model) return;
+    for (const mat of model.materials) {
+      const pbr = mat.pbrMetallicRoughness;
+      if (pbr.baseColorTexture) {
+        pbr.baseColorTexture.setTexture(null);
+      }
+      pbr.setBaseColorFactor([0.35, 0.37, 0.4, 1.0]);
+      pbr.setMetallicFactor(0.0);
+      pbr.setRoughnessFactor(1.0);
+    }
+  });
+
   // Update download button
   btnDownload.href = modelUrl;
-  btnDownload.download = filename;
+  btnDownload.download = filename || 'model.glb';
   btnDownload.removeAttribute('disabled');
 
   // Update title
   previewTitle.textContent = `${formatUnitName(unitSelect.value)} — ${skinSelect.value}`;
 
-  // Show generation metadata
-  const metaParts = [
-    `model: ${modelSelect.value.replace('hunyuan3d-dit-','')}`,
-    `steps: ${stepsInput.value}`,
-    `guidance: ${guidanceInput.value}`,
-    `octree: ${octreeInput.value}`,
-    `seed: ${seedInput.value}`,
-  ];
-  if (postprocessToggle.checked) metaParts.push(`verts: ${targetVertexInput.value}`);
-  if (textureToggle.checked) metaParts.push(`textured: ${paintModelSelect.value.replace('hunyuan3d-paint-','')}`);
-  genMeta.innerHTML = metaParts.join(' &middot; ');
+  // Show generation metadata from currentGenParams or current form
+  if (currentGenParams) {
+    const p = currentGenParams;
+    const metaParts = [`model: ${(p.model || modelSelect.value).replace('hunyuan3d-dit-','')}`];
+    metaParts.push(`steps: ${p.steps || stepsInput.value}`);
+    metaParts.push(`guidance: ${p.guidance_scale || guidanceInput.value}`);
+    metaParts.push(`octree: ${p.octree_resolution || octreeInput.value}`);
+    metaParts.push(`seed: ${p.seed || seedInput.value}`);
+    if (p.postprocess || p.target_vertices) metaParts.push(`verts: ${p.target_vertices}`);
+    if (p.texture) metaParts.push(`textured: ${(p.paint_model || '').replace('hunyuan3d-paint-','')}`);
+    if (p.duration_seconds) metaParts.push(`time: ${p.duration_seconds}s`);
+    genMeta.innerHTML = metaParts.join(' &middot; ');
+  } else {
+    const metaParts = [
+      `model: ${modelSelect.value.replace('hunyuan3d-dit-','')}`,
+      `steps: ${stepsInput.value}`,
+      `guidance: ${guidanceInput.value}`,
+      `octree: ${octreeInput.value}`,
+      `seed: ${seedInput.value}`,
+    ];
+    if (postprocessToggle.checked) metaParts.push(`verts: ${targetVertexInput.value}`);
+    if (textureToggle.checked) metaParts.push(`textured: ${paintModelSelect.value.replace('hunyuan3d-paint-','')}`);
+    genMeta.innerHTML = metaParts.join(' &middot; ');
+  }
   genMeta.classList.add('visible');
 }
 
@@ -2031,6 +2421,20 @@ function setGenerating(active, msg) {
     currentExportNodeId = null;
     currentOutputPrefix = null;
   }
+}
+
+async function saveMetadata(filename) {
+  if (!currentGenParams) return;
+  try {
+    const meta = { ...currentGenParams, filename };
+    if (genStartTime) meta.duration_seconds = Math.round((Date.now() - genStartTime) / 1000);
+    await fetch(`${API_BASE}/fabricate/metadata`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(meta)
+    });
+    log('Metadata saved');
+  } catch (e) { log('Metadata save failed: ' + e.message, 'error'); }
 }
 
 function setStatus(msg, type = '') {
@@ -2078,8 +2482,321 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ── History & Favorites ──
+let sessionHistory = []; // { unit, skin, url, filename, params, starred, spriteUrl }
+let currentHistoryIndex = -1;
+const btnStar = $('btnStar');
+const historyStrip = $('historyStrip');
+const historyStripInner = $('historyStripInner');
+
+function addToHistory(unit, skin, modelUrl, filename, params) {
+  // Get sprite URL for thumbnail
+  const spriteUrl = spritePreview.src || '';
+  const entry = { unit, skin, url: modelUrl, filename, params: params ? {...params} : null, starred: false, rejected: false, spriteUrl };
+  sessionHistory.push(entry);
+  currentHistoryIndex = sessionHistory.length - 1;
+  renderHistory();
+  btnStar.disabled = false;
+  btnStar.textContent = '\u2606';
+  btnStar.classList.remove('starred');
+  btnThumbsDown.disabled = false;
+  btnThumbsDown.classList.remove('thumbed');
+}
+
+function renderHistory() {
+  if (sessionHistory.length === 0) {
+    historyStrip.style.display = 'none';
+    return;
+  }
+  historyStrip.style.display = '';
+  historyStripInner.innerHTML = '';
+  for (let i = 0; i < sessionHistory.length; i++) {
+    const h = sessionHistory[i];
+    const card = document.createElement('div');
+    card.className = 'history-card' + (i === currentHistoryIndex ? ' active' : '');
+    card.innerHTML = `
+      ${h.spriteUrl ? `<img class="history-card-img" src="${h.spriteUrl}" alt="${h.unit}">` : '<div class="history-card-img"></div>'}
+      <div class="history-card-label">${formatUnitName(h.unit)}</div>
+      ${h.starred ? '<span class="history-card-star">\u2605</span>' : ''}
+      ${h.rejected ? '<span class="history-card-star" style="color:var(--error);left:2px;right:auto;">\u{1F44E}</span>' : ''}
+    `;
+    card.addEventListener('click', () => loadFromHistory(i));
+    historyStripInner.appendChild(card);
+  }
+  // Scroll to latest
+  historyStripInner.scrollLeft = historyStripInner.scrollWidth;
+}
+
+function loadFromHistory(index) {
+  const h = sessionHistory[index];
+  currentHistoryIndex = index;
+  currentGenParams = h.params;
+  loadModelFromUrl(h.url, h.filename);
+  previewTitle.textContent = `${formatUnitName(h.unit)} — ${h.skin}`;
+  btnStar.disabled = false;
+  btnStar.textContent = h.starred ? '\u2605' : '\u2606';
+  btnStar.classList.toggle('starred', h.starred);
+  btnThumbsDown.disabled = false;
+  btnThumbsDown.classList.toggle('thumbed', h.rejected || false);
+  renderHistory();
+}
+
+btnStar.addEventListener('click', () => {
+  if (currentHistoryIndex < 0 || currentHistoryIndex >= sessionHistory.length) return;
+  const h = sessionHistory[currentHistoryIndex];
+  h.starred = !h.starred;
+  btnStar.textContent = h.starred ? '\u2605' : '\u2606';
+  btnStar.classList.toggle('starred', h.starred);
+  renderHistory();
+
+  // Save favorite to S3
+  if (h.starred && h.filename) {
+    fetch(`${API_BASE}/fabricate/api/favorite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename, params: h.params })
+    }).catch(() => {});
+  }
+});
+
+const btnThumbsDown = $('btnThumbsDown');
+btnThumbsDown.addEventListener('click', () => {
+  if (currentHistoryIndex < 0 || currentHistoryIndex >= sessionHistory.length) return;
+  const h = sessionHistory[currentHistoryIndex];
+  h.rejected = !h.rejected;
+  btnThumbsDown.classList.toggle('thumbed', h.rejected);
+  renderHistory();
+
+  // Save rejection to S3
+  if (h.rejected && h.filename) {
+    fetch(`${API_BASE}/fabricate/api/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename, params: h.params })
+    }).catch(() => {});
+  }
+});
+
+$('btnViewFavorites').addEventListener('click', async () => {
+  try {
+    const resp = await fetch(`${API_BASE}/fabricate/api/favorites`);
+    if (!resp.ok) return;
+    const favs = await resp.json();
+    if (favs.length === 0) {
+      log('No favorites saved yet');
+      return;
+    }
+    // Show favorites in a simple overlay
+    let overlay = $('favsOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'favsOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;padding:40px 20px;overflow-y:auto;';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+      <div style="max-width:800px;width:100%;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <h2 style="font-family:var(--display);color:#ffd700;font-size:18px;letter-spacing:2px;">&#9733; FAVORITES</h2>
+          <button onclick="this.closest('#favsOverlay').remove()" style="background:none;border:1px solid var(--border);color:var(--text-primary);padding:6px 14px;cursor:pointer;border-radius:3px;font-family:var(--mono);font-size:12px;">Close</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
+          ${favs.map(f => `
+            <div style="border:1px solid var(--border);border-radius:4px;padding:10px;background:var(--bg-panel);cursor:pointer;" onclick="document.getElementById('favsOverlay').remove(); unitSelect.value='${f.unit}'; unitSelect.dispatchEvent(new Event('change')); setTimeout(()=>{skinSelect.value='${f.skin}'; skinSelect.dispatchEvent(new Event('change'));},100);">
+              <div style="font-family:var(--display);font-size:13px;color:var(--text-primary);margin-bottom:4px;">${formatUnitName(f.unit)}</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text-secondary);">[${f.skin}]</div>
+              ${f.params ? `<div style="font-family:var(--mono);font-size:9px;color:var(--text-secondary);margin-top:6px;opacity:0.6;">steps:${f.params.steps || '?'} seed:${f.params.seed || '?'}${f.params.duration_seconds ? ' '+f.params.duration_seconds+'s' : ''}</div>` : ''}
+              <div style="font-family:var(--mono);font-size:9px;color:rgba(255,215,0,0.5);margin-top:4px;">${f.favorited_at ? new Date(f.favorited_at).toLocaleDateString() : ''}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    overlay.style.display = 'flex';
+  } catch (e) { log('Failed to load favorites: ' + e.message, 'error'); }
+});
+
+// ── Batch Mode ──
+let batchRunning = false;
+let batchQueue = [];
+let batchCompleted = 0;
+let batchSkipped = 0;
+let batchErrors = 0;
+let s3Existing = {}; // { unit: [skin1, skin2, ...] }
+
+function initBatch() {
+  const batchToggle = $('batchToggle');
+  const batchSection = $('batchSection');
+  const batchUnitList = $('batchUnitList');
+  const batchFilter = $('batchFilter');
+  const btnBatchStart = $('btnBatchStart');
+  const btnBatchStop = $('btnBatchStop');
+  const batchStatus = $('batchStatus');
+
+  batchToggle.addEventListener('click', () => {
+    const open = batchSection.style.display !== 'none';
+    batchSection.style.display = open ? 'none' : 'block';
+    if (!open) populateBatchList();
+  });
+
+  async function populateBatchList() {
+    // Fetch what's already in S3
+    try {
+      const resp = await fetch(`${API_BASE}/fabricate/api/s3-list`);
+      if (resp.ok) s3Existing = await resp.json();
+    } catch {}
+
+    batchUnitList.innerHTML = '';
+    const units = Object.keys(manifest).sort();
+    for (const unit of units) {
+      const skins = Object.keys(manifest[unit]);
+      for (const skin of skins) {
+        const hasModel = s3Existing[unit]?.includes(skin);
+        const label = document.createElement('label');
+        label.className = hasModel ? 'has-model' : '';
+        label.dataset.unit = unit;
+        label.dataset.skin = skin;
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !hasModel;
+        cb.addEventListener('change', updateBatchButton);
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(`${formatUnitName(unit)} [${skin}]`));
+        batchUnitList.appendChild(label);
+      }
+    }
+    updateBatchButton();
+  }
+
+  batchFilter.addEventListener('input', () => {
+    const filter = batchFilter.value.toLowerCase();
+    for (const label of batchUnitList.querySelectorAll('label')) {
+      const text = `${label.dataset.unit} ${label.dataset.skin}`.toLowerCase();
+      label.style.display = text.includes(filter) ? '' : 'none';
+    }
+  });
+
+  $('batchSelectAll').addEventListener('click', () => {
+    for (const cb of batchUnitList.querySelectorAll('input[type=checkbox]')) {
+      if (cb.closest('label').style.display !== 'none') cb.checked = true;
+    }
+    updateBatchButton();
+  });
+  $('batchSelectNone').addEventListener('click', () => {
+    for (const cb of batchUnitList.querySelectorAll('input[type=checkbox]')) cb.checked = false;
+    updateBatchButton();
+  });
+
+  function updateBatchButton() {
+    const count = getSelectedBatchUnits().length;
+    btnBatchStart.disabled = count === 0;
+    btnBatchStart.textContent = count > 0 ? `Start Batch (${count} units)` : 'Start Batch';
+  }
+
+  function getSelectedBatchUnits() {
+    const selected = [];
+    for (const label of batchUnitList.querySelectorAll('label')) {
+      const cb = label.querySelector('input[type=checkbox]');
+      if (cb?.checked) selected.push({ unit: label.dataset.unit, skin: label.dataset.skin });
+    }
+    return selected;
+  }
+
+  btnBatchStart.addEventListener('click', () => startBatch(getSelectedBatchUnits()));
+  btnBatchStop.addEventListener('click', () => {
+    batchRunning = false;
+    btnBatchStop.style.display = 'none';
+    log('Batch stopped by user', 'error');
+  });
+}
+
+async function startBatch(units) {
+  if (batchRunning || units.length === 0) return;
+  batchRunning = true;
+  batchQueue = [...units];
+  batchCompleted = 0;
+  batchSkipped = 0;
+  batchErrors = 0;
+  const total = batchQueue.length;
+
+  const batchStatus = $('batchStatus');
+  const btnBatchStart = $('btnBatchStart');
+  const btnBatchStop = $('btnBatchStop');
+  const skipExisting = $('batchSkipExisting').checked;
+
+  batchStatus.style.display = 'block';
+  btnBatchStart.disabled = true;
+  btnBatchStop.style.display = '';
+
+  for (let i = 0; i < batchQueue.length; i++) {
+    if (!batchRunning) break;
+    const { unit, skin } = batchQueue[i];
+    const label = `${formatUnitName(unit)} [${skin}]`;
+    batchStatus.textContent = `[${i + 1}/${total}] ${label}...`;
+
+    // Skip if exists in S3
+    if (skipExisting) {
+      try {
+        const resp = await fetch(`${API_BASE}/fabricate/api/s3-check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.exists && data.files?.length > 0) {
+            log(`Batch: skipping ${label} (exists in S3)`, 'success');
+            batchSkipped++;
+            continue;
+          }
+        }
+      } catch {}
+    }
+
+    // Set unit/skin in dropdowns and generate
+    unitSelect.value = unit;
+    unitSelect.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 100)); // let skin populate
+    skinSelect.value = skin;
+    skinSelect.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 100));
+
+    log(`Batch [${i + 1}/${total}]: fabricating ${label}`);
+
+    try {
+      await startGeneration();
+      // Wait for generation to complete (poll currentPromptId)
+      await waitForCompletion();
+      batchCompleted++;
+      log(`Batch: ${label} complete`, 'success');
+    } catch (e) {
+      batchErrors++;
+      log(`Batch: ${label} failed — ${e.message}`, 'error');
+    }
+
+    // Small delay between jobs
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  batchRunning = false;
+  btnBatchStop.style.display = 'none';
+  btnBatchStart.disabled = false;
+  batchStatus.textContent = `Batch done: ${batchCompleted} completed, ${batchSkipped} skipped, ${batchErrors} errors`;
+  log(`Batch complete: ${batchCompleted}/${total} done, ${batchSkipped} skipped, ${batchErrors} errors`, 'success');
+}
+
+function waitForCompletion() {
+  return new Promise((resolve, reject) => {
+    const check = setInterval(() => {
+      if (!currentPromptId) {
+        clearInterval(check);
+        resolve();
+      }
+    }, 2000);
+    // Timeout after 20 minutes
+    setTimeout(() => { clearInterval(check); reject(new Error('Timeout')); }, 20 * 60 * 1000);
+  });
+}
+
 // ── Boot ──
 init();
+initBatch();
 </script>
 </body>
 </html>
