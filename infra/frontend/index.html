@@ -1458,6 +1458,29 @@ function updateSpritePreview() {
   spritePreview.style.display = 'block';
   spritePlaceholder.style.display = 'none';
   btnGenerate.disabled = false;
+
+  // Try to preload a previous generation for this unit/skin
+  tryPreloadModel(unit, skin);
+}
+
+async function tryPreloadModel(unit, skin) {
+  if (currentPromptId) return; // don't override active generation
+  const prefix = `${unit}_${skin}_3d`;
+  const fmt = formatSelect.value || 'glb';
+  // Try counter values from high to low to find the most recent
+  for (let i = 10; i >= 1; i--) {
+    const counter = String(i).padStart(5, '0');
+    const filename = `${prefix}_${counter}_.${fmt}`;
+    try {
+      const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
+      if (resp.ok) {
+        loadModel(filename);
+        previewTitle.textContent = `${formatUnitName(unit)} — ${skin} (previous)`;
+        return;
+      }
+    } catch {}
+  }
+  // No previous generation found — that's fine, leave preview empty
 }
 
 // ── Events ──
