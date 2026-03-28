@@ -117,8 +117,8 @@ async def _launch_and_wait(ctx, launch_fn, label):
             tunnel_url = param["Parameter"]["Value"]
             await ctx.send(
                 f"**Ready!** Instance `{instance_id}` is up.\n"
-                f"ComfyUI: **{tunnel_url}**\n"
-                f"Fabrication Terminal: **{tunnel_url}/fabricate/index.html**\n"
+                f"[ComfyUI]({tunnel_url})\n"
+                f"[Fabrication Terminal]({tunnel_url}/fabricate/index.html)\n"
                 f"Auto-shutdown after 10 min idle."
             )
             return
@@ -231,8 +231,8 @@ async def status(ctx: commands.Context):
             param = ssm.get_parameter(Name=f"/prismata-3d/tunnel-url/{iid}")
             url = param["Parameter"]["Value"]
             await ctx.send(
-                f"ComfyUI: **{url}**\n"
-                f"Fabrication Terminal: **{url}/fabricate/index.html**"
+                f"[ComfyUI]({url})\n"
+                f"[Fabrication Terminal]({url}/fabricate/index.html)"
             )
         except Exception:
             pass
