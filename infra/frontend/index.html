@@ -670,6 +670,160 @@ model-viewer::part(default-progress-bar) {
 
 .gen-meta.visible { display: block; }
 
+/* ── ADVANCED SECTION (collapsible) ── */
+.section-advanced {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(255, 107, 53, 0.04), transparent);
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-warm);
+  transition: all 0.2s;
+}
+
+.advanced-toggle::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: var(--accent-warm);
+  border-radius: 1px;
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.3);
+  margin-right: 8px;
+}
+
+.advanced-toggle:hover {
+  background: linear-gradient(90deg, rgba(255, 107, 53, 0.08), transparent);
+}
+
+.advanced-toggle-arrow {
+  font-size: 11px;
+  transition: transform 0.3s;
+  color: var(--text-secondary);
+}
+
+.section-advanced.open .advanced-toggle {
+  border-bottom-color: var(--border);
+}
+
+.section-advanced.open .advanced-toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.advanced-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.section-advanced.open .advanced-body {
+  max-height: 800px;
+}
+
+.advanced-body-inner {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.subsection-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-warm);
+  opacity: 0.7;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+  margin-bottom: -4px;
+}
+
+/* ── TOGGLE SWITCH ── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.toggle-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: 0;
+}
+
+.toggle-hint {
+  font-size: 10px;
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 1px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-track {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--accent-dim);
+}
+
+.toggle-switch input:checked + .toggle-track::after {
+  transform: translateX(16px);
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   .main-content {
@@ -759,6 +913,96 @@ model-viewer::part(default-progress-bar) {
         </div>
       </div>
 
+      <!-- Advanced Settings -->
+      <div class="section-advanced" id="advancedSection">
+        <button class="advanced-toggle" id="advancedToggle">
+          <span>Advanced Settings</span>
+          <span class="advanced-toggle-arrow">&#x25BC;</span>
+        </button>
+        <div class="advanced-body">
+          <div class="advanced-body-inner">
+
+            <!-- Model -->
+            <div class="subsection-label">Model</div>
+            <div>
+              <label for="modelSelect">Model Variant</label>
+              <select id="modelSelect">
+                <option value="hunyuan3d-dit-v2-0" selected>v2.0 — Best Quality</option>
+                <option value="hunyuan3d-dit-v2-mini">v2-mini — Fast Preview</option>
+              </select>
+            </div>
+            <div>
+              <label for="attentionSelect">Attention Mechanism</label>
+              <select id="attentionSelect">
+                <option value="sdpa" selected>SDPA (Default)</option>
+                <option value="flash_attention_2">Flash Attention 2</option>
+              </select>
+            </div>
+
+            <!-- Mesh Quality -->
+            <div class="subsection-label">Mesh Quality</div>
+            <div class="param-row">
+              <div class="param-group">
+                <label for="numChunksInput">Num Chunks</label>
+                <input type="number" id="numChunksInput" value="8000" min="1000" max="30000" step="1000">
+              </div>
+              <div class="param-group">
+                <label for="targetVertexInput">Target Vertices</label>
+                <input type="number" id="targetVertexInput" value="50000" min="1000" max="200000" step="1000">
+              </div>
+            </div>
+
+            <!-- Post-Processing -->
+            <div class="subsection-label">Post-Processing</div>
+            <div class="toggle-row">
+              <div>
+                <span class="toggle-label">Cleanup Mesh</span>
+                <span class="toggle-hint">Remove fragments, fix normals, reduce noise</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="postprocessToggle" checked>
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <span class="toggle-label">Aggressive Decimation</span>
+                <span class="toggle-hint">Stronger simplification toward target vertex count</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="aggressiveDecimation">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
+            <!-- Export -->
+            <div class="subsection-label">Export</div>
+            <div class="param-row">
+              <div class="param-group">
+                <label for="formatSelect">File Format</label>
+                <select id="formatSelect">
+                  <option value="glb" selected>GLB (Binary)</option>
+                  <option value="gltf">glTF (JSON)</option>
+                  <option value="obj">OBJ</option>
+                </select>
+              </div>
+              <div class="param-group">
+                <div class="toggle-row" style="height:100%;align-items:flex-end;padding-bottom:8px">
+                  <div>
+                    <span class="toggle-label">Embed Textures</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="embedTextures" checked>
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
       <!-- Generate -->
       <button class="btn-generate" id="btnGenerate" disabled>
         Fabricate Unit
@@ -814,6 +1058,7 @@ const API_BASE = window.location.origin;
 // ── State ──
 let manifest = {};
 let currentPromptId = null;
+let currentExportNodeId = null;
 let pollInterval = null;
 let genStartTime = null;
 let elapsedInterval = null;
@@ -845,6 +1090,17 @@ const connText = $('connText');
 const queueStatus = $('queueStatus');
 const jobLog = $('jobLog');
 const jobLogInner = $('jobLogInner');
+// Advanced
+const advancedSection = $('advancedSection');
+const advancedToggle = $('advancedToggle');
+const modelSelect = $('modelSelect');
+const attentionSelect = $('attentionSelect');
+const numChunksInput = $('numChunksInput');
+const targetVertexInput = $('targetVertexInput');
+const postprocessToggle = $('postprocessToggle');
+const aggressiveDecimation = $('aggressiveDecimation');
+const formatSelect = $('formatSelect');
+const embedTextures = $('embedTextures');
 
 // ── Initialization ──
 async function init() {
@@ -966,6 +1222,9 @@ function bindEvents() {
   btnLogToggle.addEventListener('click', () => {
     jobLog.classList.toggle('open');
   });
+  advancedToggle.addEventListener('click', () => {
+    advancedSection.classList.toggle('open');
+  });
 }
 
 // ── Generation ──
@@ -984,54 +1243,102 @@ async function startGeneration() {
   const guidance = parseFloat(guidanceInput.value) || 5.5;
   const octree = parseInt(octreeInput.value) || 256;
   const seed = parseInt(seedInput.value) || 42;
+  const model = modelSelect.value;
+  const attention = attentionSelect.value;
+  const numChunks = parseInt(numChunksInput.value) || 8000;
+  const doPostprocess = postprocessToggle.checked;
+  const doAggressive = aggressiveDecimation.checked;
+  const targetVerts = parseInt(targetVertexInput.value) || 50000;
+  const fileFormat = formatSelect.value;
 
-  // Build the API workflow (matches the proven multi-stage pipeline)
-  const workflow = {
-    "1": {
-      "class_type": "LoadImage",
-      "inputs": {
-        "image": comfyInputImage
-      }
-    },
-    "2": {
-      "class_type": "Hy3DModelLoader",
-      "inputs": {
-        "model": "hunyuan3d-dit-v2-0"
-      }
-    },
-    "3": {
-      "class_type": "Hy3DGenerateMesh",
-      "inputs": {
-        "pipeline": ["2", 0],
-        "image": ["1", 0],
-        "steps": steps,
-        "guidance_scale": guidance,
-        "seed": seed
-      }
-    },
-    "4": {
-      "class_type": "Hy3DVAEDecode",
-      "inputs": {
-        "vae": ["2", 1],
-        "latents": ["3", 0],
-        "octree_resolution": octree,
-        "num_chunks": 8000
-      }
-    },
-    "5": {
-      "class_type": "Hy3DExportMesh",
-      "inputs": {
-        "trimesh": ["4", 0],
-        "file_format": "glb",
-        "filename_prefix": outputPrefix
-      }
+  // Build the API workflow (multi-stage pipeline with optional postprocessing)
+  let nextNodeId = 1;
+  const workflow = {};
+
+  // Node 1: LoadImage
+  const loadImageId = String(nextNodeId++);
+  workflow[loadImageId] = {
+    "class_type": "LoadImage",
+    "inputs": { "image": comfyInputImage }
+  };
+
+  // Node 2: Hy3DModelLoader
+  const modelLoaderId = String(nextNodeId++);
+  workflow[modelLoaderId] = {
+    "class_type": "Hy3DModelLoader",
+    "inputs": {
+      "model": model,
+      "attention_mode": attention
     }
   };
 
+  // Node 3: Hy3DGenerateMesh
+  const generateId = String(nextNodeId++);
+  workflow[generateId] = {
+    "class_type": "Hy3DGenerateMesh",
+    "inputs": {
+      "pipeline": [modelLoaderId, 0],
+      "image": [loadImageId, 0],
+      "steps": steps,
+      "guidance_scale": guidance,
+      "seed": seed
+    }
+  };
+
+  // Node 4: Hy3DVAEDecode
+  const vaeDecodeId = String(nextNodeId++);
+  workflow[vaeDecodeId] = {
+    "class_type": "Hy3DVAEDecode",
+    "inputs": {
+      "vae": [modelLoaderId, 1],
+      "latents": [generateId, 0],
+      "octree_resolution": octree,
+      "num_chunks": numChunks
+    }
+  };
+
+  // Track which node feeds into export
+  let meshSourceId = vaeDecodeId;
+
+  // Node 5 (optional): Hy3DPostprocessMesh
+  if (doPostprocess) {
+    const postprocessId = String(nextNodeId++);
+    workflow[postprocessId] = {
+      "class_type": "Hy3DPostprocessMesh",
+      "inputs": {
+        "trimesh": [vaeDecodeId, 0],
+        "remove_small_components": true,
+        "remove_noise": true,
+        "fix_normals": true,
+        "target_vertex_count": targetVerts,
+        "aggressive_decimation": doAggressive
+      }
+    };
+    meshSourceId = postprocessId;
+  }
+
+  // Final node: Hy3DExportMesh
+  const exportId = String(nextNodeId++);
+  workflow[exportId] = {
+    "class_type": "Hy3DExportMesh",
+    "inputs": {
+      "trimesh": [meshSourceId, 0],
+      "file_format": fileFormat,
+      "filename_prefix": outputPrefix
+    }
+  };
+
+  // Remember which node is the exporter (for polling output)
+  const exportNodeId = exportId;
+
   setGenerating(true, `Fabricating ${formatUnitName(unit)} [${skin}]...`);
-  log(`Queuing generation: ${unit}/${skin} — steps=${steps} guidance=${guidance} seed=${seed} octree=${octree}`);
+  const advSettings = doPostprocess ? ` postprocess=on verts=${targetVerts}` : '';
+  log(`Queuing: ${unit}/${skin} — model=${model.replace('hunyuan3d-dit-','')} steps=${steps} guidance=${guidance} seed=${seed} octree=${octree}${advSettings}`);
 
   try {
+    // Store export node ID for output polling
+    currentExportNodeId = exportNodeId;
+
     const resp = await fetch(`${API_BASE}/api/prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1093,32 +1400,34 @@ async function pollHistory() {
       clearInterval(pollInterval);
       pollInterval = null;
 
-      // Find the GLB output from node 5 (Hy3DExportMesh)
-      const exportOutput = entry.outputs['5'];
+      // Find the GLB output from the export node
+      const exportOutput = entry.outputs[currentExportNodeId];
       let glbFile = null;
 
+      const fmt = formatSelect.value || 'glb';
+      const fmtExt = fmt === 'gltf' ? 'gltf' : fmt; // glb, gltf, obj
+
       if (exportOutput) {
-        // Hy3DExportMesh outputs a glb_path or files array
+        // Hy3DExportMesh outputs files array or text with path
         if (exportOutput.glb_files) {
           glbFile = exportOutput.glb_files[0]?.filename;
         } else if (exportOutput.text) {
-          // Sometimes the path is returned as text
-          const pathMatch = exportOutput.text.find(t => t.endsWith('.glb'));
+          const pathMatch = exportOutput.text.find(t => t.endsWith('.' + fmtExt) || t.endsWith('.glb'));
           glbFile = pathMatch;
         }
-        // Try generic scan of all output values
+        // Generic scan of all output values
         if (!glbFile) {
           const outputStr = JSON.stringify(exportOutput);
-          const glbMatch = outputStr.match(/([^"\/\\]+\.glb)/);
-          if (glbMatch) glbFile = glbMatch[1];
+          const fmtMatch = outputStr.match(new RegExp(`([^"\\/\\\\]+\\.(?:${fmtExt}|glb))`));
+          if (fmtMatch) glbFile = fmtMatch[1];
         }
       }
 
-      // Fallback: scan all outputs for any GLB reference
+      // Fallback: scan all outputs for any model file reference
       if (!glbFile) {
         const allOutputStr = JSON.stringify(entry.outputs);
-        const glbMatch = allOutputStr.match(/([^"\/\\]+\.glb)/);
-        if (glbMatch) glbFile = glbMatch[1];
+        const fmtMatch = allOutputStr.match(new RegExp(`([^"\\/\\\\]+\\.(?:${fmtExt}|glb))`));
+        if (fmtMatch) glbFile = fmtMatch[1];
       }
 
       if (glbFile) {
@@ -1172,12 +1481,15 @@ function loadModel(filename) {
   previewTitle.textContent = `${formatUnitName(unitSelect.value)} — ${skinSelect.value}`;
 
   // Show generation metadata
-  genMeta.innerHTML = [
+  const metaParts = [
+    `model: ${modelSelect.value.replace('hunyuan3d-dit-','')}`,
     `steps: ${stepsInput.value}`,
     `guidance: ${guidanceInput.value}`,
     `octree: ${octreeInput.value}`,
     `seed: ${seedInput.value}`,
-  ].join(' &middot; ');
+  ];
+  if (postprocessToggle.checked) metaParts.push(`verts: ${targetVertexInput.value}`);
+  genMeta.innerHTML = metaParts.join(' &middot; ');
   genMeta.classList.add('visible');
 }
 
@@ -1202,6 +1514,7 @@ function setGenerating(active, msg) {
     genStartTime = null;
     stopElapsedTimer();
     currentPromptId = null;
+    currentExportNodeId = null;
   }
 }
 
