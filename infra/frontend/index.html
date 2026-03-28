@@ -1099,6 +1099,28 @@ label[title], .toggle-label[title], span[title] {
               </div>
             </div>
 
+            <div class="subsection-label" style="color:var(--error)">Performance</div>
+            <div class="toggle-row">
+              <div>
+                <span class="toggle-label" title="Flash VDM acceleration for VAE decode. On by default. Disable if you get CUDA errors on certain meshes.">Flash VDM</span>
+                <span class="toggle-hint">GPU-accelerated VAE decode (disable if CUDA errors)</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="flashVdmToggle" checked>
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <span class="toggle-label" title="Offload models from GPU after use. Frees VRAM for next step. Disable to keep models loaded (faster back-to-back, but may OOM).">Force Offload</span>
+                <span class="toggle-hint">Free GPU memory after each stage (safer but slower)</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="forceOffloadToggle" checked>
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
           </div>
         </div>
       </div>
@@ -1584,7 +1606,9 @@ async function startGeneration() {
       "octree_resolution": octree,
       "num_chunks": numChunks,
       "mc_level": 0,
-      "mc_algo": $('mcAlgoSelect').value || "mc"
+      "mc_algo": $('mcAlgoSelect').value || "mc",
+      "enable_flash_vdm": $('flashVdmToggle').checked,
+      "force_offload": $('forceOffloadToggle').checked
     }
   };
 
