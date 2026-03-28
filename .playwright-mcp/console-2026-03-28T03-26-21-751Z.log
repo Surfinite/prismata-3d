@@ -1,7 +1,0 @@
-[     311ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
-[   15331ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
-[   30330ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
-[   45335ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
-[   60334ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
-[   75334ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
-[   90332ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
