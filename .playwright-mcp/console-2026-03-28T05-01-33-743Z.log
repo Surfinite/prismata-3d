@@ -1,0 +1,66 @@
+[     560ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_INVALID @ https://ogads-pa.clients6.google.com/$rpc/google.internal.onegoogle.asyncdata.v1.AsyncDataService/GetAsyncData:0
+[    2419ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://instructors-accessibility-page-minister.trycloudflare.com/fabricate/index.html:0
+[    2562ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://instructors-accessibility-page-minister.trycloudflare.com/favicon.ico:0
+[  707825ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ chrome-error://chromewebdata/:0
+[  744230ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://behavioral-garcia-kings-fun.trycloudflare.com/fabricate/index.html:0
+[  744869ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://behavioral-garcia-kings-fun.trycloudflare.com/favicon.ico:0
+[  924412ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://behavioral-garcia-kings-fun.trycloudflare.com/fabricate/index.html:0
+[  924678ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://behavioral-garcia-kings-fun.trycloudflare.com/favicon.ico:0
+[  927630ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://behavioral-garcia-kings-fun.trycloudflare.com/fabricate/index.html:0
+[  928246ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://behavioral-garcia-kings-fun.trycloudflare.com/favicon.ico:0
+[  963322ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ chrome-error://chromewebdata/:0
+[ 1361593ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/favicon.ico:0
+[ 1394814ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1406537ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1421530ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1436533ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1451448ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1466452ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1481467ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1496514ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1511455ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1526460ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1541453ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1556765ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1571449ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1586460ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/api/system_stats:0
+[ 1588369ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://favourite-ebooks-artificial-they.trycloudflare.com/fabricate/:0
+[ 1637455ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ chrome-error://chromewebdata/:0
+[ 2036120ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/favicon.ico:0
+[ 2613829ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/favicon.ico:0
+[ 2618554ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/view?filename=prismata-assets%2Funits%2F1-apollo%2FRegular.png&type=input:0
+[ 2631196ms] TypeError: Cannot read properties of null (reading 'checked')
+    at HTMLButtonElement.startGeneration (https://juvenile-mardi-kinda-wizard.trycloudflare.com/fabricate/index.html:1289:45)
+[ 2652852ms] TypeError: Cannot read properties of null (reading 'checked')
+    at HTMLButtonElement.startGeneration (https://juvenile-mardi-kinda-wizard.trycloudflare.com/fabricate/index.html:1289:45)
+[ 2938029ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/favicon.ico:0
+[ 2953800ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/prompt:0
+[ 2981893ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/prompt:0
+[ 3291443ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/favicon.ico:0
+[ 3297962ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/prompt:0
+[ 3303362ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/prompt:0
+[ 3628024ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/favicon.ico:0
+[ 4000818ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/prompt:0
+[ 4314714ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4329724ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4344719ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4359649ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4374675ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4389642ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4404634ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4419662ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4434638ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4449633ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4464640ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4479635ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4494638ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4509642ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4524638ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4539640ms] [ERROR] Failed to load resource: the server responded with a status of 530 () @ https://juvenile-mardi-kinda-wizard.trycloudflare.com/api/system_stats:0
+[ 4544488ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://www.google.com/pagead/1p-conversion/16521530460/?gad_source=1&adview_type=4&adview_query_id=CKmSyY75wZMDFel_QQIdW4A3Zg:0
+[ 4544743ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_INVALID @ https://ogads-pa.clients6.google.com/$rpc/google.internal.onegoogle.asyncdata.v1.AsyncDataService/GetAsyncData:0
+[ 4557835ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://supervision-gym-adsl-provision.trycloudflare.com/fabricate/index.html:0
+[ 4557997ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://supervision-gym-adsl-provision.trycloudflare.com/favicon.ico:0
+[ 4568777ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://supervision-gym-adsl-provision.trycloudflare.com/fabricate/index.html:0
+[ 4568908ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://supervision-gym-adsl-provision.trycloudflare.com/favicon.ico:0
+[ 4586191ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://supervision-gym-adsl-provision.trycloudflare.com/fabricate/index.html:0

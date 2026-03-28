@@ -1,0 +1,4 @@
+[     277ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/system_stats:0
+[     285ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/manifest.json:0
+[     290ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/api/view?filename=prismata-assets/manifest.json&type=input:0
+[     296ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/prismata-assets/manifest.json:0
