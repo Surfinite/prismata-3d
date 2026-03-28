@@ -53,6 +53,9 @@ cd ../../..
 # Install extra mesh processing deps
 pip install --no-cache-dir -r requirements_extras.txt || echo "Some extras failed — non-critical"
 
+# Additional runtime deps discovered during first run
+pip install --no-cache-dir omegaconf rembg onnxruntime timm open_clip_torch segment_anything kornia
+
 # Pre-download the shape model weights only (~2GB).
 # The texture/paint models auto-download on first generation via the wrapper.
 # Skipping the full tencent/Hunyuan3D-2 repo (~30GB) to avoid filling the disk.
