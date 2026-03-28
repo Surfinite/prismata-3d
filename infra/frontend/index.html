@@ -894,12 +894,13 @@ label[title], .toggle-label[title], span[title] {
       <div class="section">
         <div class="section-header" style="justify-content:space-between">
           <span style="display:flex;align-items:center;gap:8px"><span style="content:'';width:3px;height:14px;background:var(--accent);border-radius:1px;box-shadow:0 0 8px var(--accent-glow);display:inline-block"></span>Generation Settings</span>
-          <div class="toggle-row" style="gap:8px">
-            <span class="toggle-label" style="font-size:11px;color:var(--accent)" title="Sets steps=15, octree=128, cleanup=off for ~30s generations">Fast</span>
+          <div class="toggle-row" style="gap:6px" title="Fast: steps=15, octree=128, cleanup=off (~30s). Best: steps=20, octree=256, cleanup=on (~2 min).">
+            <span class="toggle-label" style="font-size:11px;color:var(--accent);letter-spacing:1px;margin:0">Best</span>
             <label class="toggle-switch">
               <input type="checkbox" id="fastToggle">
               <span class="toggle-track"></span>
             </label>
+            <span class="toggle-label" style="font-size:11px;color:var(--accent);letter-spacing:1px;margin:0">Fast</span>
           </div>
         </div>
         <div class="section-body">
@@ -1106,6 +1107,8 @@ let manifest = {};
 let currentPromptId = null;
 let currentExportNodeId = null;
 let pollInterval = null;
+let ws = null;
+let nodeStageMap = {}; // maps node ID → friendly stage name
 let genStartTime = null;
 let elapsedInterval = null;
 let modelViewerEl = null;
@@ -1152,11 +1155,71 @@ const paintModelSelect = $('paintModelSelect');
 const cvKernelInput = $('cvKernelInput');
 const cvMethodSelect = $('cvMethodSelect');
 
+// ── WebSocket for real-time progress ──
+function connectWebSocket() {
+  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const clientId = crypto.randomUUID();
+  const wsUrl = `${wsProto}//${location.host}/ws?clientId=${clientId}`;
+
+  try {
+    ws = new WebSocket(wsUrl);
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        handleWsMessage(msg);
+      } catch {}
+    };
+    ws.onclose = () => {
+      // Reconnect after 5s
+      setTimeout(connectWebSocket, 5000);
+    };
+    ws.onerror = () => {};
+  } catch {}
+}
+
+function handleWsMessage(msg) {
+  if (!currentPromptId) return;
+
+  if (msg.type === 'executing' && msg.data?.prompt_id === currentPromptId) {
+    const nodeId = msg.data.node;
+    if (nodeId === null) {
+      // Execution complete
+      return;
+    }
+    const stage = nodeStageMap[nodeId] || `Node ${nodeId}`;
+    setStatus(`${stage}...`, 'working');
+    log(`Stage: ${stage}`);
+  }
+
+  if (msg.type === 'progress' && msg.data?.prompt_id === currentPromptId) {
+    const { value, max } = msg.data;
+    if (max > 0) {
+      const pct = Math.round((value / max) * 100);
+      progressFill.classList.remove('indeterminate');
+      progressFill.style.width = `${pct}%`;
+      const nodeId = msg.data.node;
+      const stage = nodeStageMap[nodeId] || 'Processing';
+      setStatus(`${stage}... ${value}/${max}`, 'working');
+    }
+  }
+
+  if (msg.type === 'execution_error' && msg.data?.prompt_id === currentPromptId) {
+    const nodeId = msg.data.node_id;
+    const stage = nodeStageMap[nodeId] || `Node ${nodeId}`;
+    const errMsg = msg.data.exception_message || 'Unknown error';
+    log(`Error in ${stage}: ${errMsg}`, 'error');
+    setGenerating(false);
+    setStatus(`Error in ${stage}`, 'error');
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  }
+}
+
 // ── Initialization ──
 async function init() {
   await checkConnection();
   await loadManifest();
   bindEvents();
+  connectWebSocket();
   setInterval(checkConnection, 15000);
 }
 
@@ -1494,6 +1557,28 @@ async function startGeneration() {
 
   // Remember which node is the exporter (for polling output)
   const exportNodeId = exportId;
+
+  // Build stage name map for WebSocket progress
+  nodeStageMap = {};
+  for (const [id, node] of Object.entries(workflow)) {
+    const names = {
+      'LoadImage': 'Loading image',
+      'Hy3DModelLoader': 'Loading 3D model into VRAM',
+      'Hy3DGenerateMesh': 'Generating mesh (diffusion)',
+      'Hy3DVAEDecode': 'Decoding mesh (marching cubes)',
+      'Hy3DPostprocessMesh': 'Cleaning up mesh',
+      'Hy3DMeshUVWrap': 'Unwrapping UVs',
+      'DownloadAndLoadHy3DPaintModel': 'Loading paint model',
+      'Hy3DRenderMultiView': 'Rendering multiview',
+      'Hy3DSampleMultiView': 'Painting multiview textures',
+      'Hy3DBakeFromMultiview': 'Baking texture',
+      'Hy3DMeshVerticeInpaintTexture': 'Inpainting texture gaps',
+      'CV2InpaintTexture': 'Refining texture',
+      'Hy3DApplyTexture': 'Applying texture to mesh',
+      'Hy3DExportMesh': 'Exporting GLB',
+    };
+    nodeStageMap[id] = names[node.class_type] || node.class_type;
+  }
 
   setGenerating(true, `Fabricating ${formatUnitName(unit)} [${skin}]...`);
   const advSettings = doPostprocess ? ` postprocess=on verts=${targetVerts}` : '';
