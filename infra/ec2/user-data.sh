@@ -52,7 +52,7 @@ done
 
 # 2. Start quick tunnel
 echo "--- Starting quick tunnel ---"
-cloudflared tunnel --url http://localhost:8188 --no-autoupdate > /tmp/tunnel.log 2>&1 &
+cloudflared tunnel --url http://localhost:8188 --no-autoupdate --protocol http2 > /tmp/tunnel.log 2>&1 &
 
 # Wait for tunnel URL (grep -oE for portability — no PCRE dependency)
 TUNNEL_URL=""

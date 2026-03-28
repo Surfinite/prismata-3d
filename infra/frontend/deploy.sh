@@ -30,14 +30,14 @@ deploy_ssm() {
         --document-name "AWS-RunShellScript" \
         --parameters "commands=[
             'set -e',
-            'COMFYUI_WEB=/opt/comfyui/web',
-            'FABRICATE_DIR=\$COMFYUI_WEB/fabricate',
-            'mkdir -p \$FABRICATE_DIR',
-            'aws s3 cp s3://prismata-3d-models/frontend/index.html \$FABRICATE_DIR/index.html --region us-east-1',
-            'cp /opt/prismata-3d/assets/manifest.json \$FABRICATE_DIR/manifest.json',
-            'cp /opt/prismata-3d/assets/descriptions.json \$FABRICATE_DIR/descriptions.json',
-            'chown -R comfyui:comfyui \$FABRICATE_DIR',
-            'echo Frontend deployed to \$FABRICATE_DIR'
+            'FABRICATE_NODE=/opt/comfyui/custom_nodes/fabricate',
+            'mkdir -p \$FABRICATE_NODE/web',
+            'aws s3 cp s3://prismata-3d-models/frontend/index.html \$FABRICATE_NODE/web/index.html --region us-east-1',
+            'cp /opt/prismata-3d/assets/manifest.json \$FABRICATE_NODE/web/manifest.json',
+            'cp /opt/prismata-3d/assets/descriptions.json \$FABRICATE_NODE/web/descriptions.json',
+            'chown -R comfyui:comfyui \$FABRICATE_NODE',
+            'systemctl restart comfyui',
+            'echo Frontend deployed — ComfyUI restarting'
         ]" \
         --region us-east-1 \
         --query "Command.CommandId" --output text)
