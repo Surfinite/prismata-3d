@@ -731,6 +731,20 @@ label[title], .toggle-label[title], span[title] {
   margin-right: 8px;
 }
 
+.expert-toggle {
+  color: var(--error) !important;
+  background: linear-gradient(90deg, rgba(255, 71, 87, 0.04), transparent) !important;
+}
+
+.expert-toggle::before {
+  background: var(--error) !important;
+  box-shadow: 0 0 8px rgba(255, 71, 87, 0.3) !important;
+}
+
+.expert-toggle:hover {
+  background: linear-gradient(90deg, rgba(255, 71, 87, 0.08), transparent) !important;
+}
+
 .advanced-toggle:hover {
   background: linear-gradient(90deg, rgba(255, 107, 53, 0.08), transparent);
 }
@@ -1065,8 +1079,8 @@ label[title], .toggle-label[title], span[title] {
 
       <!-- Expert Settings -->
       <div class="section-advanced" id="expertSection">
-        <button class="advanced-toggle" id="expertToggle" style="color:var(--error);background:linear-gradient(90deg,rgba(255,71,87,0.04),transparent)">
-          <span style="display:flex;align-items:center;gap:8px"><span style="width:3px;height:14px;background:var(--error);border-radius:1px;box-shadow:0 0 8px rgba(255,71,87,0.3);display:inline-block"></span>Expert Only</span>
+        <button class="advanced-toggle expert-toggle" id="expertToggle">
+          <span>Expert Only</span>
           <span class="advanced-toggle-arrow">&#x25BC;</span>
         </button>
         <div class="advanced-body">
