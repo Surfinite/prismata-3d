@@ -91,31 +91,45 @@ async def _launch_and_wait(ctx, launch_fn, label):
     import boto3
     ssm = boto3.client("ssm", region_name=AWS_REGION)
 
+    # Phase 1: wait for instance to be running
+    ip = None
     for attempt in range(60):  # up to 5 min
         await asyncio.sleep(5)
         instances = await asyncio.to_thread(ec2.get_running)
         for inst in instances:
             if inst["InstanceId"] == instance_id and inst["State"]["Name"] == "running":
-                # Try to read tunnel URL from SSM
-                try:
-                    param = ssm.get_parameter(
-                        Name=f"/prismata-3d/tunnel-url/{instance_id}")
-                    tunnel_url = param["Parameter"]["Value"]
-                    await ctx.send(
-                        f"Ready! Instance `{instance_id}` running.\n"
-                        f"Open: **{tunnel_url}**\n"
-                        f"Auto-shutdown after 10 min idle."
-                    )
-                except Exception:
-                    ip = inst.get("PublicIpAddress", "unknown")
-                    await ctx.send(
-                        f"Instance `{instance_id}` running at IP `{ip}`.\n"
-                        f"Tunnel URL not yet available — check `!status` in a minute.\n"
-                        f"Auto-shutdown after 10 min idle."
-                    )
-                return
+                ip = inst.get("PublicIpAddress", "unknown")
+                break
+        if ip:
+            break
+    else:
+        await ctx.send(f"Instance `{instance_id}` still not ready after 5 min. Check `!status`.")
+        return
 
-    await ctx.send(f"Instance `{instance_id}` still not ready after 5 min. Check `!status`.")
+    await ctx.send(f"Instance `{instance_id}` running at IP `{ip}`. Waiting for tunnel URL...")
+
+    # Phase 2: poll for tunnel URL (up to 3 min — ComfyUI + cloudflared startup)
+    for attempt in range(36):
+        await asyncio.sleep(5)
+        try:
+            param = ssm.get_parameter(
+                Name=f"/prismata-3d/tunnel-url/{instance_id}")
+            tunnel_url = param["Parameter"]["Value"]
+            await ctx.send(
+                f"**Ready!** Instance `{instance_id}` is up.\n"
+                f"ComfyUI: **{tunnel_url}**\n"
+                f"Fabrication Terminal: **{tunnel_url}/fabricate/index.html**\n"
+                f"Auto-shutdown after 10 min idle."
+            )
+            return
+        except Exception:
+            pass
+
+    await ctx.send(
+        f"Instance `{instance_id}` is running but tunnel URL not found.\n"
+        f"ComfyUI may still be starting — try `!status` in a minute.\n"
+        f"Auto-shutdown after 10 min idle."
+    )
 
 
 @bot.command()
@@ -205,10 +219,23 @@ async def status(ctx: commands.Context):
     instances = await asyncio.to_thread(ec2.get_running)
     await ctx.send(format_status_message(instances))
 
+    import boto3
+    ssm = boto3.client("ssm", region_name=AWS_REGION)
     for inst in instances:
         cost = ec2.estimate_cost(inst)
         lifecycle = inst.get("InstanceLifecycle", "on-demand")
         await ctx.send(format_cost_estimate(cost, lifecycle))
+        # Show tunnel URL if available
+        iid = inst["InstanceId"]
+        try:
+            param = ssm.get_parameter(Name=f"/prismata-3d/tunnel-url/{iid}")
+            url = param["Parameter"]["Value"]
+            await ctx.send(
+                f"ComfyUI: **{url}**\n"
+                f"Fabrication Terminal: **{url}/fabricate/index.html**"
+            )
+        except Exception:
+            pass
 
 
 def main():
