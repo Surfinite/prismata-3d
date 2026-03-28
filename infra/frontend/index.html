@@ -487,6 +487,19 @@ select option {
   pointer-events: none;
 }
 
+.btn-danger {
+  color: var(--error) !important;
+  border-color: rgba(255, 71, 87, 0.3) !important;
+}
+
+.btn-danger:hover {
+  border-color: var(--error) !important;
+  color: #fff !important;
+  background: rgba(255, 71, 87, 0.15) !important;
+  box-shadow: 0 0 12px rgba(255, 71, 87, 0.3) !important;
+  text-shadow: 0 0 8px rgba(255, 71, 87, 0.5);
+}
+
 .preview-viewport {
   flex: 1;
   position: relative;
@@ -1061,6 +1074,8 @@ label[title], .toggle-label[title], span[title] {
       <div class="preview-header">
         <span class="preview-title" id="previewTitle">3D Preview</span>
         <div class="preview-actions">
+          <button class="btn-action btn-danger" id="btnKill" title="Interrupt the currently running generation">Kill</button>
+          <button class="btn-action btn-danger" id="btnClearQueue" title="Remove all pending jobs from the queue">Clear Queue</button>
           <a class="btn-action" id="btnDownload" disabled href="#" download>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Download GLB
@@ -1343,6 +1358,24 @@ function bindEvents() {
   });
   textureToggle.addEventListener('change', () => {
     textureSettings.style.display = textureToggle.checked ? 'flex' : 'none';
+  });
+  $('btnKill').addEventListener('click', async () => {
+    try {
+      await fetch(`${API_BASE}/api/interrupt`, { method: 'POST' });
+      log('Interrupted running job', 'error');
+      setGenerating(false);
+      setStatus('Interrupted', 'error');
+    } catch (e) { log('Kill failed: ' + e.message, 'error'); }
+  });
+  $('btnClearQueue').addEventListener('click', async () => {
+    try {
+      await fetch(`${API_BASE}/api/queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clear: true })
+      });
+      log('Queue cleared', 'error');
+    } catch (e) { log('Clear failed: ' + e.message, 'error'); }
   });
   const fastToggle = $('fastToggle');
   fastToggle.addEventListener('change', () => {
