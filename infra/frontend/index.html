@@ -980,6 +980,41 @@ model-viewer::part(default-progress-bar) {
               </label>
             </div>
 
+            <!-- Texturing -->
+            <div class="subsection-label">Texturing</div>
+            <div class="toggle-row">
+              <div>
+                <span class="toggle-label">Generate Textures</span>
+                <span class="toggle-hint">Paint model bakes color texture onto mesh (~30s extra)</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="textureToggle">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div id="textureSettings" style="display:none;flex-direction:column;gap:12px">
+              <div>
+                <label for="paintModelSelect">Paint Model</label>
+                <select id="paintModelSelect">
+                  <option value="hunyuan3d-paint-v2-0" selected>v2.0 — Best Quality</option>
+                  <option value="hunyuan3d-paint-v2-0-turbo">v2.0 Turbo — Faster</option>
+                </select>
+              </div>
+              <div class="param-row">
+                <div class="param-group">
+                  <label for="cvKernelInput">Inpaint Kernel</label>
+                  <input type="number" id="cvKernelInput" value="3" min="1" max="11" step="2">
+                </div>
+                <div class="param-group">
+                  <label for="cvMethodSelect">Inpaint Method</label>
+                  <select id="cvMethodSelect">
+                    <option value="ns" selected>Navier-Stokes</option>
+                    <option value="telea">Telea</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <!-- Export -->
             <div class="subsection-label">Export</div>
             <div class="param-row">
@@ -1106,6 +1141,11 @@ const postprocessToggle = $('postprocessToggle');
 const aggressiveDecimation = $('aggressiveDecimation');
 const formatSelect = $('formatSelect');
 const embedTextures = $('embedTextures');
+const textureToggle = $('textureToggle');
+const textureSettings = $('textureSettings');
+const paintModelSelect = $('paintModelSelect');
+const cvKernelInput = $('cvKernelInput');
+const cvMethodSelect = $('cvMethodSelect');
 
 // ── Initialization ──
 async function init() {
@@ -1230,6 +1270,9 @@ function bindEvents() {
   advancedToggle.addEventListener('click', () => {
     advancedSection.classList.toggle('open');
   });
+  textureToggle.addEventListener('change', () => {
+    textureSettings.style.display = textureToggle.checked ? 'flex' : 'none';
+  });
 }
 
 // ── Generation ──
@@ -1322,6 +1365,74 @@ async function startGeneration() {
     meshSourceId = postprocessId;
   }
 
+  // Texture pipeline (optional): UVWrap → PaintModel → BakeMultiview → Inpaint → CV2Inpaint → ApplyTexture
+  const doTexture = textureToggle.checked;
+  if (doTexture) {
+    // UV Unwrap
+    const uvWrapId = String(nextNodeId++);
+    workflow[uvWrapId] = {
+      "class_type": "Hy3DMeshUVWrap",
+      "inputs": { "trimesh": [meshSourceId, 0] }
+    };
+
+    // Load paint model
+    const paintModelId = String(nextNodeId++);
+    workflow[paintModelId] = {
+      "class_type": "DownloadAndLoadHy3DPaintModel",
+      "inputs": { "model": paintModelSelect.value }
+    };
+
+    // Bake texture from multiview renders
+    // BakeFromMultiview takes the multiview_pipe, original image, and a renderer
+    // The renderer is created implicitly from the UV-wrapped mesh
+    const bakeId = String(nextNodeId++);
+    workflow[bakeId] = {
+      "class_type": "Hy3DBakeFromMultiview",
+      "inputs": {
+        "multiview_pipe": [paintModelId, 0],
+        "image": [loadImageId, 0],
+        "trimesh": [uvWrapId, 0]
+      }
+    };
+    // Outputs: [0]=texture, [1]=mask, [2]=renderer
+
+    // Vertex-based inpaint (diffusion-based hole filling)
+    const vertInpaintId = String(nextNodeId++);
+    workflow[vertInpaintId] = {
+      "class_type": "Hy3DMeshVerticeInpaintTexture",
+      "inputs": {
+        "texture": [bakeId, 0],
+        "mask": [bakeId, 1],
+        "renderer": [bakeId, 2]
+      }
+    };
+    // Outputs: [0]=texture, [1]=mask, [2]=renderer
+
+    // CV2 inpaint (OpenCV refinement pass)
+    const cv2InpaintId = String(nextNodeId++);
+    workflow[cv2InpaintId] = {
+      "class_type": "CV2InpaintTexture",
+      "inputs": {
+        "texture": [vertInpaintId, 0],
+        "mask": [vertInpaintId, 1],
+        "kernel_size": parseInt(cvKernelInput.value) || 3,
+        "method": cvMethodSelect.value
+      }
+    };
+
+    // Apply texture to mesh
+    const applyTexId = String(nextNodeId++);
+    workflow[applyTexId] = {
+      "class_type": "Hy3DApplyTexture",
+      "inputs": {
+        "texture": [cv2InpaintId, 0],
+        "renderer": [vertInpaintId, 2]
+      }
+    };
+
+    meshSourceId = applyTexId;
+  }
+
   // Final node: Hy3DExportMesh
   const exportId = String(nextNodeId++);
   workflow[exportId] = {
@@ -1338,7 +1449,8 @@ async function startGeneration() {
 
   setGenerating(true, `Fabricating ${formatUnitName(unit)} [${skin}]...`);
   const advSettings = doPostprocess ? ` postprocess=on verts=${targetVerts}` : '';
-  log(`Queuing: ${unit}/${skin} — model=${model.replace('hunyuan3d-dit-','')} steps=${steps} guidance=${guidance} seed=${seed} octree=${octree}${advSettings}`);
+  const texInfo = doTexture ? ` texture=on paint=${paintModelSelect.value.replace('hunyuan3d-paint-','')}` : '';
+  log(`Queuing: ${unit}/${skin} — model=${model.replace('hunyuan3d-dit-','')} steps=${steps} guidance=${guidance} seed=${seed} octree=${octree}${advSettings}${texInfo}`);
 
   try {
     // Store export node ID for output polling
@@ -1494,6 +1606,7 @@ function loadModel(filename) {
     `seed: ${seedInput.value}`,
   ];
   if (postprocessToggle.checked) metaParts.push(`verts: ${targetVertexInput.value}`);
+  if (textureToggle.checked) metaParts.push(`textured: ${paintModelSelect.value.replace('hunyuan3d-paint-','')}`);
   genMeta.innerHTML = metaParts.join(' &middot; ');
   genMeta.classList.add('visible');
 }
