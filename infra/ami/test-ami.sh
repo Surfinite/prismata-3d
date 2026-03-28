@@ -45,6 +45,10 @@ check "Asset manifest present" test -f /opt/prismata-3d/assets/manifest.json
 check "Asset descriptions present" test -f /opt/prismata-3d/assets/descriptions.json
 check "Sprites present" test -d /opt/prismata-3d/assets/units
 
+# Frontend
+check "Fabrication Terminal installed" test -f /opt/comfyui/web/fabricate/index.html
+check "Frontend manifest present" test -f /opt/comfyui/web/fabricate/manifest.json
+
 # Services
 check "comfyui.service installed" test -f /etc/systemd/system/comfyui.service
 check "cloudflared installed" which cloudflared
