@@ -22,7 +22,7 @@ KEY_NAME="prismata-spectator"              # EC2 key pair name
 SECURITY_GROUP="sg-0fdc130ad1d5dc373"      # prismata-3d-gen security group
 SSH_KEY="$HOME/.ssh/<SSH_KEY>.pem"
 INSTANCE_PROFILE="prismata-3d-gen-profile" # IAM instance profile
-AMI_NAME="prismata-3d-gen-v1-$(date +%Y%m%d)"
+AMI_NAME="prismata-3d-gen-v2-$(date +%Y%m%d-%H%M)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== Building Prismata 3D Gen AMI ==="
