@@ -74,6 +74,7 @@ ec2 = EC2Manager(
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.reactions = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
@@ -82,45 +83,56 @@ async def on_ready():
     print(f"Bot ready: {bot.user} | Channel: #{DISCORD_CHANNEL_NAME}")
 
 
+async def _launch_and_wait(ctx, launch_fn, label):
+    """Launch an instance and poll for tunnel URL."""
+    instance_id = await asyncio.to_thread(launch_fn)
+    await ctx.send(f"{label} instance `{instance_id}` launching...")
+
+    import boto3
+    ssm = boto3.client("ssm", region_name=AWS_REGION)
+
+    for attempt in range(60):  # up to 5 min
+        await asyncio.sleep(5)
+        instances = await asyncio.to_thread(ec2.get_running)
+        for inst in instances:
+            if inst["InstanceId"] == instance_id and inst["State"]["Name"] == "running":
+                # Try to read tunnel URL from SSM
+                try:
+                    param = ssm.get_parameter(
+                        Name=f"/prismata-3d/tunnel-url/{instance_id}")
+                    tunnel_url = param["Parameter"]["Value"]
+                    await ctx.send(
+                        f"Ready! Instance `{instance_id}` running.\n"
+                        f"Open: **{tunnel_url}**"
+                    )
+                except Exception:
+                    ip = inst.get("PublicIpAddress", "unknown")
+                    await ctx.send(
+                        f"Instance `{instance_id}` running at IP `{ip}`.\n"
+                        f"Tunnel URL not yet available — check `!status` in a minute."
+                    )
+                return
+
+    await ctx.send(f"Instance `{instance_id}` still not ready after 5 min. Check `!status`.")
+
+
 @bot.command()
-async def start(ctx: commands.Context):
-    """Launch a GPU spot instance for 3D model generation."""
+async def start(ctx: commands.Context, mode: str = "spot"):
+    """Launch a GPU instance. Use '!start od' for on-demand."""
     if not is_ops_channel(ctx):
         return
 
     await ctx.send("Starting up (~2-3 min)...")
 
+    if mode == "od":
+        try:
+            await _launch_and_wait(ctx, ec2.launch_on_demand, "On-demand")
+        except Exception as e:
+            await ctx.send(f"Error launching on-demand: {str(e)[:200]}")
+        return
+
     try:
-        instance_id = await asyncio.to_thread(ec2.launch_spot)
-        await ctx.send(f"Spot instance `{instance_id}` launching...")
-
-        # Poll until running, then check for tunnel URL
-        for attempt in range(60):  # up to 5 min
-            await asyncio.sleep(5)
-            instances = await asyncio.to_thread(ec2.get_running)
-            for inst in instances:
-                if inst["InstanceId"] == instance_id and inst["State"]["Name"] == "running":
-                    ip = inst.get("PublicIpAddress", "unknown")
-                    # Try to read tunnel URL from SSM
-                    try:
-                        import boto3
-                        ssm = boto3.client("ssm", region_name=AWS_REGION)
-                        param = ssm.get_parameter(
-                            Name=f"/prismata-3d/tunnel-url/{instance_id}")
-                        tunnel_url = param["Parameter"]["Value"]
-                        await ctx.send(
-                            f"Ready! Instance `{instance_id}` running.\n"
-                            f"Open: **{tunnel_url}**"
-                        )
-                    except Exception:
-                        await ctx.send(
-                            f"Instance `{instance_id}` running at IP `{ip}`.\n"
-                            f"Tunnel URL not yet available — check `!status` in a minute."
-                        )
-                    return
-
-        await ctx.send(f"Instance `{instance_id}` still not ready after 5 min. Check `!status`.")
-
+        await _launch_and_wait(ctx, ec2.launch_spot, "Spot")
     except RuntimeError as e:
         if "Maximum" in str(e):
             await ctx.send(f"Cannot start: {e}")
@@ -129,13 +141,40 @@ async def start(ctx: commands.Context):
     except Exception as e:
         error_msg = str(e)
         if "InsufficientInstanceCapacity" in error_msg or "capacity" in error_msg.lower():
-            await ctx.send(
+            msg = await ctx.send(
                 f"No spot capacity available in {AWS_REGION}.\n"
                 f"Launch on-demand instead? (~${ON_DEMAND_PRICE_ESTIMATE:.2f}/hr)\n"
                 f"React with \u2705 to confirm."
             )
+            await msg.add_reaction("\u2705")
+            # Store message ID so reaction handler can find it
+            bot._od_fallback_msg = msg.id
+            bot._od_fallback_ctx = ctx
         else:
             await ctx.send(f"Error launching instance: {error_msg[:200]}")
+
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    """Handle ✅ reaction on on-demand fallback prompt."""
+    if user.bot:
+        return
+    if not hasattr(bot, "_od_fallback_msg"):
+        return
+    if reaction.message.id != bot._od_fallback_msg:
+        return
+    if str(reaction.emoji) != "\u2705":
+        return
+
+    ctx = bot._od_fallback_ctx
+    del bot._od_fallback_msg
+    del bot._od_fallback_ctx
+
+    await ctx.send("Launching on-demand instance...")
+    try:
+        await _launch_and_wait(ctx, ec2.launch_on_demand, "On-demand")
+    except Exception as e:
+        await ctx.send(f"Error launching on-demand: {str(e)[:200]}")
 
 
 @bot.command()
