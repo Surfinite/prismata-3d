@@ -640,6 +640,47 @@ model-viewer::part(default-progress-bar) {
   align-items: center;
   gap: 8px;
 }
+/* ── PREVIEW STAR & THUMBSDOWN ── */
+.btn-star-preview {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s;
+  opacity: 0.4;
+}
+.btn-star-preview:disabled {
+  opacity: 0.15;
+  cursor: not-allowed;
+}
+.btn-star-preview:hover:not(:disabled) {
+  color: #ffd700;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+.btn-star-preview.starred {
+  color: #ffd700;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+.btn-thumbsdown {
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 10px;
+  color: var(--text-secondary);
+}
+.btn-thumbsdown.thumbed {
+  color: var(--error) !important;
+  border-color: rgba(255, 71, 87, 0.4) !important;
+}
+.btn-thumbsdown:hover:not(:disabled) {
+  color: var(--error) !important;
+  border-color: rgba(255, 71, 87, 0.4) !important;
+}
+
 /* ── FAVORITES BADGE ── */
 .favs-badge {
   display: flex;
@@ -1483,9 +1524,11 @@ label[title], .toggle-label[title], span[title] {
     <div class="preview-panel">
       <div class="preview-header">
         <div class="preview-title-group">
+          <button class="btn-star-preview" id="btnStar" title="Favorite this model" disabled>&#9734;</button>
           <span class="preview-title" id="previewTitle">3D Preview</span>
         </div>
         <div class="preview-actions">
+          <button class="btn-action btn-thumbsdown" id="btnThumbsDown" title="Mark as bad generation" disabled>&#128078;</button>
           <button class="btn-action btn-danger" id="btnKill" title="Interrupt the currently running generation">Kill</button>
           <button class="btn-action btn-danger" id="btnClearQueue" title="Remove all pending jobs from the queue">Clear Queue</button>
           <a class="btn-action" id="btnDownload" disabled href="#" download>
@@ -2571,6 +2614,8 @@ const favsBadge = $('favsBadge');
 const favsBadgeCount = $('favsBadgeCount');
 const favsDropdown = $('favsDropdown');
 const favsDropdownGrid = $('favsDropdownGrid');
+const btnStar = $('btnStar');
+const btnThumbsDown = $('btnThumbsDown');
 
 // Fetch favorites from S3 and populate badge + dropdown
 async function loadFavorites() {
@@ -2665,12 +2710,43 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Preview header star/thumbsdown — operate on current history item
+function syncPreviewButtons() {
+  if (currentHistoryIndex < 0 || currentHistoryIndex >= sessionHistory.length) {
+    btnStar.disabled = true;
+    btnStar.textContent = '\u2606';
+    btnStar.classList.remove('starred');
+    btnThumbsDown.disabled = true;
+    btnThumbsDown.classList.remove('thumbed');
+    return;
+  }
+  const h = sessionHistory[currentHistoryIndex];
+  btnStar.disabled = false;
+  btnStar.textContent = h.starred ? '\u2605' : '\u2606';
+  btnStar.classList.toggle('starred', h.starred);
+  btnThumbsDown.disabled = false;
+  btnThumbsDown.classList.toggle('thumbed', h.rejected || false);
+}
+
+btnStar.addEventListener('click', () => {
+  if (currentHistoryIndex < 0 || currentHistoryIndex >= sessionHistory.length) return;
+  toggleStar(currentHistoryIndex);
+  syncPreviewButtons();
+});
+
+btnThumbsDown.addEventListener('click', () => {
+  if (currentHistoryIndex < 0 || currentHistoryIndex >= sessionHistory.length) return;
+  toggleReject(currentHistoryIndex);
+  syncPreviewButtons();
+});
+
 function addToHistory(unit, skin, modelUrl, filename, params) {
   const spriteUrl = spritePreview.src || '';
   const entry = { unit, skin, url: modelUrl, filename, params: params ? {...params} : null, starred: false, rejected: false, spriteUrl };
   sessionHistory.push(entry);
   currentHistoryIndex = sessionHistory.length - 1;
   renderHistory();
+  syncPreviewButtons();
 }
 
 function renderHistory() {
@@ -2739,6 +2815,7 @@ function loadFromHistory(index) {
   loadModelFromUrl(h.url, h.filename);
   previewTitle.textContent = `${formatUnitName(h.unit)} — ${h.skin}`;
   renderHistory();
+  syncPreviewButtons();
 }
 
 function toggleStar(index) {
