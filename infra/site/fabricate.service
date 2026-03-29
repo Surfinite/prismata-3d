@@ -1,0 +1,18 @@
+[Unit]
+Description=Fabrication Terminal API Server
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/fabricate
+ExecStart=/usr/bin/node server.js
+Environment=NODE_ENV=production
+Environment=PORT=3100
+Environment=AWS_REGION=us-east-1
+Environment=S3_BUCKET=prismata-3d-models
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
