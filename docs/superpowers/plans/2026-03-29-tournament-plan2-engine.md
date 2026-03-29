@@ -188,7 +188,7 @@ export function getMatchesForRound(roundId) {
             u2.prismata_username as p2_name, u2.discord_id as p2_discord_id
      FROM tournament_matches tm
      JOIN users u1 ON tm.player1_id = u1.id
-     JOIN users u2 ON tm.player2_id = u2.id
+     LEFT JOIN users u2 ON tm.player2_id = u2.id
      WHERE tm.round_id = ?`
   ).all(roundId);
 }
@@ -340,16 +340,6 @@ export function getMatchesNeedingReminder(nowIso, thresholdPercent) {
   ).all();
 }
 
-export function getMatchesAwaitingConfirmation() {
-  // Matches with status 'completed' that have match_games but haven't been confirmed
-  // (dispute window tracking would need a confirmed_at column — for now, rely on scheduler)
-  return getDb().prepare(
-    `SELECT tm.*, t.name as tournament_name
-     FROM tournament_matches tm
-     JOIN tournaments t ON tm.tournament_id = t.id
-     WHERE tm.status = 'completed'`
-  ).all();
-}
 ```
 
 - [ ] **Step 2: Write tests**
@@ -496,22 +486,11 @@ git commit -m "feat(bot): add tournament database query layer"
 // bot/lib/bracket-engine.js
 
 /**
- * Shuffle an array in-place (Fisher-Yates).
- */
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-/**
  * Generate first-round pairings for a single elimination bracket.
- * Players are shuffled randomly and paired sequentially.
+ * Players are paired in the order given (caller is responsible for seeding/shuffling).
  * If player count is not a power of 2, some players get byes in round 1.
  *
- * @param {Array<{userId: number}>} players - Array of player objects with at least userId
+ * @param {Array<{userId: number}>} players - Array of player objects, pre-ordered by seed
  * @returns {Array<{player1Id: number, player2Id: number|null}>} Pairings (null = bye)
  */
 export function generateSingleElimPairings(players) {
@@ -519,8 +498,8 @@ export function generateSingleElimPairings(players) {
     throw new Error('Need at least 2 players for a tournament');
   }
 
-  const shuffled = shuffle([...players]);
-  const n = shuffled.length;
+  const ordered = [...players]; // Don't shuffle — caller controls order
+  const n = ordered.length;
 
   // Next power of 2
   const bracketSize = Math.pow(2, Math.ceil(Math.log2(n)));
@@ -530,8 +509,8 @@ export function generateSingleElimPairings(players) {
 
   // First `byeCount` players get byes (they advance automatically to round 2)
   // Remaining players are paired
-  const byePlayers = shuffled.slice(0, byeCount);
-  const matchPlayers = shuffled.slice(byeCount);
+  const byePlayers = ordered.slice(0, byeCount);
+  const matchPlayers = ordered.slice(byeCount);
 
   // Bye pairings
   for (const p of byePlayers) {
@@ -604,6 +583,60 @@ export function getRoundWinners(matches) {
     if (m.winner_id) return m.winner_id;
     return null; // should not happen for completed rounds
   }).filter(id => id !== null);
+}
+
+/**
+ * Check if a round is complete and advance the bracket if so.
+ * Creates next round matches, handles byes, DMs players.
+ * @param {import('discord.js').Client} client - Discord client for DMs
+ * @param {number} tournamentId
+ */
+export async function tryAdvanceBracket(client, tournamentId) {
+  // Dynamic imports to avoid circular deps (bracket-engine is a lib, not a command)
+  const { getActiveRound, getMatchesForRound, completeRound, createRound, createMatch,
+          setMatchResult, getTournament, updateTournamentStatus } = await import('./tournament-db.js');
+
+  const activeRound = getActiveRound(tournamentId);
+  if (!activeRound) return;
+
+  const matches = getMatchesForRound(activeRound.id);
+  if (!isRoundComplete(matches)) return;
+
+  completeRound(activeRound.id);
+
+  const winners = getRoundWinners(matches);
+  if (winners.length <= 1) {
+    updateTournamentStatus(tournamentId, 'completed');
+    return;
+  }
+
+  const nextPairings = generateNextRoundPairings(winners);
+  const tournament = getTournament(tournamentId);
+  const rules = JSON.parse(tournament.rules_json);
+  const deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const nextRound = createRound(tournamentId, activeRound.round_number + 1, deadline);
+
+  for (const pairing of nextPairings) {
+    const match = createMatch(tournamentId, nextRound.id, pairing.player1Id, pairing.player2Id, rules.best_of || 1, deadline);
+    if (pairing.player2Id === null) {
+      setMatchResult(match.id, pairing.player1Id, 'completed');
+    }
+  }
+
+  // DM players about new round matches
+  const newMatches = getMatchesForRound(nextRound.id);
+  for (const match of newMatches) {
+    if (!match.p2_discord_id) continue;
+    const dmContent = `Your **${tournament.name}** Round ${activeRound.round_number + 1} match is ready!\n` +
+      `**${match.p1_name}** vs **${match.p2_name}**\n` +
+      `Deadline: <t:${Math.floor(new Date(deadline).getTime() / 1000)}:R>`;
+    try {
+      const p1 = await client.users.fetch(match.p1_discord_id);
+      await p1.send(dmContent).catch(() => {});
+      const p2 = await client.users.fetch(match.p2_discord_id);
+      await p2.send(dmContent).catch(() => {});
+    } catch { /* DMs may be closed */ }
+  }
 }
 ```
 
@@ -928,8 +961,7 @@ export async function execute(interaction) {
         const match = createMatch(tournament.id, round.id, pairing.player1Id, null, rules.best_of || 1, deadline);
         const byePlayer = players.find(p => p.user_id === pairing.player1Id);
         matchDescriptions.push(`**${byePlayer?.prismata_username}** — bye`);
-        // Auto-complete bye match
-        const { setMatchResult } = await import('../lib/tournament-db.js');
+        // Auto-complete bye match (setMatchResult already imported at top)
         setMatchResult(match.id, pairing.player1Id, 'completed');
       } else {
         createMatch(tournament.id, round.id, pairing.player1Id, pairing.player2Id, rules.best_of || 1, deadline);
@@ -1072,7 +1104,7 @@ export async function execute(interaction) {
     if (activeMatch) {
       const winnerId = activeMatch.player1_id === targetUser.id ? activeMatch.player2_id : activeMatch.player1_id;
       setMatchResult(activeMatch.id, winnerId, 'forfeited');
-      const { tryAdvanceBracket } = await import('../commands/result.js');
+      const { tryAdvanceBracket } = await import('../lib/bracket-engine.js');
       await tryAdvanceBracket(interaction.client, tournament.id);
     }
 
@@ -1141,7 +1173,7 @@ import {
 } from '../lib/tournament-db.js';
 import { fetchReplay } from '../lib/replay-fetcher.js';
 import { validateMatchReplay } from '../lib/replay-validator.js';
-import { generateNextRoundPairings, isRoundComplete, getRoundWinners } from '../lib/bracket-engine.js';
+import { tryAdvanceBracket } from '../lib/bracket-engine.js';
 
 export const data = new SlashCommandBuilder()
   .setName('result')
@@ -1362,56 +1394,7 @@ async function handleChallengeResult(interaction, user, challenge, codes) {
   );
 }
 
-async function tryAdvanceBracket(client, tournamentId) {
-  const activeRound = getActiveRound(tournamentId);
-  if (!activeRound) return;
-
-  const matches = getMatchesForRound(activeRound.id);
-  if (!isRoundComplete(matches)) return;
-
-  completeRound(activeRound.id);
-
-  const winners = getRoundWinners(matches);
-  if (winners.length <= 1) {
-    // Tournament complete!
-    updateTournamentStatus(tournamentId, 'completed');
-    const tournament = getTournament(tournamentId);
-    // Could announce in a channel here
-    return;
-  }
-
-  // Generate next round
-  const nextPairings = generateNextRoundPairings(winners);
-  const tournament = getTournament(tournamentId);
-  const rules = JSON.parse(tournament.rules_json);
-  const deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // Default 48h
-  const nextRound = createRound(tournamentId, activeRound.round_number + 1, deadline);
-
-  for (const pairing of nextPairings) {
-    const match = createMatch(tournamentId, nextRound.id, pairing.player1Id, pairing.player2Id, rules.best_of || 1, deadline);
-    if (pairing.player2Id === null) {
-      // Bye
-      setMatchResult(match.id, pairing.player1Id, 'completed');
-    }
-  }
-
-  // DM players about new round matches
-  const newMatches = getMatchesForRound(nextRound.id);
-  for (const match of newMatches) {
-    if (!match.p2_discord_id) continue;
-    const dmContent = `Your **${tournament.name}** Round ${activeRound.round_number + 1} match is ready!\n` +
-      `**${match.p1_name}** vs **${match.p2_name}**\n` +
-      `Deadline: <t:${Math.floor(new Date(deadline).getTime() / 1000)}:R>`;
-    try {
-      const p1 = await client.users.fetch(match.p1_discord_id);
-      await p1.send(dmContent).catch(() => {});
-      const p2 = await client.users.fetch(match.p2_discord_id);
-      await p2.send(dmContent).catch(() => {});
-    } catch { /* DMs may be closed */ }
-  }
-}
-
-export { tryAdvanceBracket };
+// tryAdvanceBracket lives in lib/bracket-engine.js (imported at top)
 ```
 
 - [ ] **Step 2: Commit**
@@ -1752,7 +1735,7 @@ git commit -m "feat(bot): add /standings and /bracket commands"
 // bot/lib/scheduler.js
 import { getOverdueMatches, getMatchesNeedingReminder, setMatchResult, eliminatePlayer } from './tournament-db.js';
 import { markReplayCodeUsed } from '../db.js';
-import { tryAdvanceBracket } from '../commands/result.js';
+import { tryAdvanceBracket } from './bracket-engine.js';
 
 const CHECK_INTERVAL_MS = 60_000; // 1 minute
 const REMINDED = new Map(); // matchId -> Set of thresholds already reminded
@@ -1777,17 +1760,23 @@ async function runSchedulerTick(client) {
     const games = getMatchGames(match.id);
 
     if (games.length > 0) {
-      // Games were submitted — accept result as-is
-      // Tally wins
+      // Games were submitted — tally wins
       const wins = { [match.player1_id]: 0, [match.player2_id]: 0 };
       for (const g of games) {
         if (g.winner_id) wins[g.winner_id]++;
       }
-      const winnerId = wins[match.player1_id] >= wins[match.player2_id] ? match.player1_id : match.player2_id;
-      const loserId = winnerId === match.player1_id ? match.player2_id : match.player1_id;
 
-      setMatchResult(match.id, winnerId, 'completed');
-      eliminatePlayer(match.tournament_id, loserId);
+      if (wins[match.player1_id] !== wins[match.player2_id]) {
+        // Clear winner — accept result
+        const winnerId = wins[match.player1_id] > wins[match.player2_id] ? match.player1_id : match.player2_id;
+        const loserId = winnerId === match.player1_id ? match.player2_id : match.player1_id;
+        setMatchResult(match.id, winnerId, 'completed');
+        eliminatePlayer(match.tournament_id, loserId);
+      } else {
+        // Tied series (e.g., 1-1 in Bo3) — flag for organizer review, don't auto-advance
+        const { createDispute } = await import('./tournament-db.js');
+        createDispute(match.id, null, null, 'Deadline expired with tied series. Organizer must resolve.');
+      }
     } else {
       // No games — both forfeit
       setMatchResult(match.id, null, 'forfeited');
