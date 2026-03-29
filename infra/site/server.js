@@ -96,22 +96,17 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
-  // Find GPU for this client
+  // Phase 4: lazy assignment — don't assign on WS connect, only on prompt submit
+  // Check existing assignment first, fall back to any ready GPU for queue polling
   let gpuIp = null;
-  if (clientId) {
-    const assignment = db.getClientAssignment(clientId);
-    if (assignment && assignment.private_ip) {
-      gpuIp = assignment.private_ip;
-      db.touchClient(clientId);
-    }
-  }
-
-  // Fall back to ready GPU found above
-  if (!gpuIp) {
+  const assignment = db.getClientAssignment(clientId);
+  if (assignment && assignment.private_ip) {
+    gpuIp = assignment.private_ip;
+    db.touchClient(clientId);
+  } else {
+    // No assignment yet — connect to any ready GPU (for queue polling before first prompt)
     gpuIp = readyGpu.private_ip;
-    if (clientId) {
-      db.assignClient(clientId, readyGpu.instance_id);
-    }
+    // Do NOT assign client here — assignment happens on prompt submission
   }
 
   // Open upstream WebSocket to GPU
@@ -121,8 +116,29 @@ server.on('upgrade', (req, socket, head) => {
     const upstream = new WebSocket(upstreamUrl);
 
     upstream.on('open', () => {
-      // Relay messages: GPU → Client
+      // Relay messages: GPU → Client (with status tap)
       upstream.on('message', (data, isBinary) => {
+        // Tap: sniff prompt status from GPU messages (text frames only)
+        if (!isBinary) {
+          try {
+            const msg = JSON.parse(data.toString());
+            if (msg.type === 'executing' && msg.data?.prompt_id) {
+              if (msg.data.node === null) {
+                // node === null means execution complete for this prompt
+                db.updatePromptStatus(msg.data.prompt_id, 'completed');
+              } else {
+                // A node is executing — prompt is running
+                db.updatePromptStatus(msg.data.prompt_id, 'running');
+              }
+            }
+            if (msg.type === 'execution_error' && msg.data?.prompt_id) {
+              db.updatePromptStatus(msg.data.prompt_id, 'failed');
+            }
+          } catch {
+            // Don't break relay on parse failure
+          }
+        }
+
         if (clientWs.readyState === WebSocket.OPEN) {
           clientWs.send(data, { binary: isBinary });
         }
