@@ -73,6 +73,9 @@ async function reconcile() {
   if (session) {
     await reconcileDesiredState(session);
   }
+
+  // 9. Clean up ephemeral client assignments (Phase 4)
+  cleanEphemeralAssignments();
 }
 
 // ── Discord polling for pending requests ──
@@ -257,29 +260,71 @@ async function healthCheckInstances() {
 
 // ── Desired state reconciliation (demand-based) ──
 
-async function reconcileDesiredState(session) {
-  const readyGpus = db.getGpuInstances('ready');
-  const launchingGpus = db.getGpuInstances('launching');
-  const lock = db.getLaunchLock();
+function cleanEphemeralAssignments() {
+  const d = db.getDb();
+  const assignments = d.prepare(`
+    SELECT ca.client_id, ca.gpu_instance_id
+    FROM client_assignments ca
+    JOIN gpu_instances gi ON ca.gpu_instance_id = gi.instance_id
+    WHERE gi.status = 'ready'
+  `).all();
 
-  // Demand-based: only launch if wake_requested_at is set
-  // Session active + wake requested + no GPU running + no launch in progress → launch GPU
-  if (session.wake_requested_at && readyGpus.length === 0 && launchingGpus.length === 0 && !lock.inProgress) {
-    if (db.isLaunchCoolingDown()) {
-      return; // Respect cooldown
+  for (const assignment of assignments) {
+    const count = db.getClientActivePromptCount(assignment.client_id, assignment.gpu_instance_id);
+    if (count === 0) {
+      db.clearClientAssignment(assignment.client_id);
     }
-    await launchGpu(session);
   }
 }
 
+async function reconcileDesiredState(session) {
+  const lock = db.getLaunchLock();
+
+  // Path 1: First GPU — wake on demand
+  if (db.getActiveGpuCount() === 0 && session.wake_requested_at && !lock.inProgress) {
+    if (!db.isLaunchCoolingDown()) {
+      await launchGpu(session);
+      return;
+    }
+  }
+
+  // Path 2: Second GPU — autoscale
+  const readyGpus = db.getReadyGpus();
+  const launchingGpus = db.getLaunchingGpus();
+  if (readyGpus.length === 1 && launchingGpus.length === 0 && !lock.inProgress) {
+    if (shouldScaleUp(readyGpus[0]) && !db.isLaunchCoolingDown()) {
+      console.log('[reconciler] Scale-up triggered: launching GPU B');
+      await launchGpu(session);
+    }
+  }
+}
+
+function shouldScaleUp(readyGpu) {
+  const d = db.getDb();
+  const row = d.prepare(`
+    SELECT COUNT(*) as cnt FROM prompts
+    WHERE gpu_instance_id = ? AND status IN ('pending', 'running')
+  `).get(readyGpu.instance_id);
+  return row.cnt >= 3;
+}
+
 async function launchGpu(session) {
-  // Phase 3: hard-limit to 1 GPU (Fix B)
-  if (!db.canLaunchGpu()) {
-    console.log('[reconciler] GPU already launching or ready, refusing new launch');
+  const slot = db.getNextSlot();
+
+  // Defensive: verify no active GPU already holds this slot
+  const d = db.getDb();
+  const existing = d.prepare("SELECT COUNT(*) as cnt FROM gpu_instances WHERE slot = ? AND status IN ('launching', 'ready')").get(slot);
+  if (existing.cnt > 0) {
+    console.log(`[reconciler] Slot ${slot} already occupied, refusing launch`);
     return;
   }
 
-  const slot = 'A'; // Phase 3: always slot A (Fix B)
+  // Verify hard cap of 2
+  if (db.getActiveGpuCount() >= 2) {
+    console.log('[reconciler] Already at GPU cap (2), refusing launch');
+    return;
+  }
+
   console.log(`[reconciler] Launching GPU instance (slot ${slot}) for session ${session.id}`);
   db.setLaunchLock(true);
 
@@ -307,10 +352,8 @@ async function launchGpu(session) {
     }));
 
     const instanceId = resp.Instances[0].InstanceId;
-    console.log(`[reconciler] Launched instance ${instanceId}`);
+    console.log(`[reconciler] Launched instance ${instanceId} (slot ${slot})`);
     db.registerGpuInstance(instanceId, slot, session.id);
-
-    // wake_requested_at is NOT cleared here — only cleared when GPU becomes ready (Fix C)
   } catch (err) {
     console.error('[reconciler] Launch failed:', err.message);
     db.setLaunchLock(false);
@@ -325,9 +368,7 @@ async function forceLaunch() {
   if (!session) throw new Error('No active session');
   const lock = db.getLaunchLock();
   if (lock.inProgress) throw new Error('Launch already in progress');
-  // Refuse if any GPU exists (Fix B)
-  if (!db.canLaunchGpu()) throw new Error('GPU already launching or ready');
-  // Set wake flag and launch
+  if (db.getActiveGpuCount() >= 2) throw new Error('Already at GPU cap (2)');
   db.setWakeRequested(session.id);
   await launchGpu(session);
 }
