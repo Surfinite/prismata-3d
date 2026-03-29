@@ -1577,7 +1577,53 @@ label[title], .toggle-label[title], span[title] {
 // Talks to ComfyUI API on same origin
 // ═══════════════════════════════════════════════════════════════
 
-const API_BASE = window.location.origin;
+// Mode-aware API routing by hostname.
+// Site-box mode: S3 via Express /api/s3/..., no GPU available.
+// GPU legacy mode: everything via ComfyUI /fabricate/api/... and /api/...
+const ORIGIN = window.location.origin;
+const IS_SITE_BOX = window.location.hostname === 'fabricate.prismata.live';
+let gpuAvailable = !IS_SITE_BOX;
+
+// Route helpers
+function s3CheckUrl(unit, skin) {
+  return IS_SITE_BOX
+    ? `${ORIGIN}/api/s3/check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`
+    : `${ORIGIN}/fabricate/api/s3-check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`;
+}
+function s3ListUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/list` : `${ORIGIN}/fabricate/api/s3-list`;
+}
+function s3FavoritesUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/favorites` : `${ORIGIN}/fabricate/api/favorites`;
+}
+function s3FavoriteUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/favorite` : `${ORIGIN}/fabricate/api/favorite`;
+}
+function s3UnfavoriteUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/unfavorite` : `${ORIGIN}/fabricate/api/unfavorite`;
+}
+function s3RejectUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/reject` : `${ORIGIN}/fabricate/api/reject`;
+}
+async function s3ModelUrl(unit, skin, fmt, filename) {
+  if (IS_SITE_BOX) {
+    const params = new URLSearchParams({ format: fmt || 'glb' });
+    if (filename) params.set('filename', filename);
+    const resp = await fetch(`${ORIGIN}/api/s3/model-url/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?${params}`);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.url;
+  }
+  const params = new URLSearchParams({ format: fmt || 'glb' });
+  if (filename) params.set('filename', filename);
+  return `${ORIGIN}/fabricate/api/s3-model/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?${params}`;
+}
+function gpuUrl(path) {
+  return `${ORIGIN}${path}`;
+}
+function metadataUrl() {
+  return `${ORIGIN}/fabricate/metadata`;
+}
 
 // ── State ──
 let manifest = {};
@@ -1641,6 +1687,7 @@ const wsClientId = sessionStorage.getItem('fabricate_client_id') || crypto.rando
 sessionStorage.setItem('fabricate_client_id', wsClientId);
 
 function connectWebSocket() {
+  if (IS_SITE_BOX) return;  // No WebSocket in browse mode
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${wsProto}//${location.host}/ws?clientId=${wsClientId}`;
 
@@ -1703,7 +1750,7 @@ function handleWsMessage(msg) {
 // ── Reconnect to running/pending jobs on page load ──
 async function reconnectToRunningJobs() {
   try {
-    const resp = await fetch(`${API_BASE}/api/queue`);
+    const resp = await fetch(gpuUrl('/api/queue'));
     if (!resp.ok) return;
     const q = await resp.json();
 
@@ -1777,19 +1824,42 @@ async function init() {
   await checkConnection();
   await loadManifest();
   bindEvents();
+  if (IS_SITE_BOX) {
+    $('btnGenerate').disabled = true;
+    $('btnGenerate').title = 'GPU not available — browse mode';
+    $('btnKill').disabled = true;
+    $('btnClearQueue').disabled = true;
+  }
   connectWebSocket();
   await reconnectToRunningJobs();
   setInterval(checkConnection, 15000);
 }
 
 async function checkConnection() {
+  if (IS_SITE_BOX) {
+    try {
+      const resp = await fetch(`${ORIGIN}/api/status`, { signal: AbortSignal.timeout(5000) });
+      if (resp.ok) {
+        const status = await resp.json();
+        connDot.classList.remove('connected');
+        connText.textContent = status.message || 'GPU Offline — Browse Mode';
+        queueStatus.textContent = '';
+      }
+    } catch {
+      connDot.classList.remove('connected');
+      connText.textContent = 'Offline';
+      queueStatus.textContent = '';
+    }
+    return;
+  }
+  // GPU legacy mode: existing checkConnection behavior unchanged
   try {
-    const resp = await fetch(`${API_BASE}/api/system_stats`, { signal: AbortSignal.timeout(5000) });
+    const resp = await fetch(gpuUrl('/api/system_stats'), { signal: AbortSignal.timeout(5000) });
     if (resp.ok) {
       connDot.classList.add('connected');
       connText.textContent = 'ComfyUI Online';
       // Check queue with per-user position
-      const qResp = await fetch(`${API_BASE}/api/queue`);
+      const qResp = await fetch(gpuUrl('/api/queue'));
       if (!qResp.ok) return;
       const q = await qResp.json();
       const running = q.queue_running || [];
@@ -1847,9 +1917,12 @@ async function loadManifest() {
   // Try multiple paths: deployed alongside HTML, ComfyUI view API, root fallback
   const paths = [
     'manifest.json',
-    `${API_BASE}/api/view?filename=prismata-assets/manifest.json&type=input`,
-    `${API_BASE}/prismata-assets/manifest.json`,
+    `${ORIGIN}/manifest.json`,
   ];
+  if (!IS_SITE_BOX) {
+    paths.push(`${ORIGIN}/api/view?filename=prismata-assets/manifest.json&type=input`);
+    paths.push(`${ORIGIN}/prismata-assets/manifest.json`);
+  }
   for (const path of paths) {
     try {
       const resp = await fetch(path);
@@ -1911,7 +1984,7 @@ function updateSpritePreview() {
   const parts = path.split('/');
   const filename = parts.pop();
   const subfolder = 'prismata-assets/' + parts.join('/');
-  spritePreview.src = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=input`;
+  spritePreview.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=input`;
   spritePreview.style.display = 'block';
   spritePlaceholder.style.display = 'none';
   btnGenerate.disabled = false;
@@ -1930,7 +2003,7 @@ async function tryPreloadModel(unit, skin) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
     try {
-      const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
+      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
       if (resp.ok) {
         loadModel(filename);
         previewTitle.textContent = `${formatUnitName(unit)} — ${skin} (previous)`;
@@ -1941,12 +2014,13 @@ async function tryPreloadModel(unit, skin) {
 
   // 2. Check S3 for previously generated models
   try {
-    const resp = await fetch(`${API_BASE}/fabricate/api/s3-check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`);
+    const resp = await fetch(s3CheckUrl(unit, skin));
     if (resp.ok) {
       const data = await resp.json();
       if (data.exists && data.files?.length > 0) {
         // Load from S3 via proxy
-        const s3Url = `${API_BASE}/fabricate/api/s3-model/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?format=${fmt}`;
+        const s3Url = await s3ModelUrl(unit, skin, fmt);
+        if (!s3Url) return;
         loadModelFromUrl(s3Url, `${unit}_${skin}_latest.${fmt}`);
         previewTitle.textContent = `${formatUnitName(unit)} — ${skin} (S3)`;
         // Store metadata if available
@@ -1960,7 +2034,7 @@ async function tryPreloadModel(unit, skin) {
 
 async function getRunningJobClientId() {
   try {
-    const resp = await fetch(`${API_BASE}/api/queue`);
+    const resp = await fetch(gpuUrl('/api/queue'));
     if (!resp.ok) return null;
     const q = await resp.json();
     const running = q.queue_running || [];
@@ -2020,6 +2094,7 @@ function bindEvents() {
     $('expertSection').classList.toggle('open');
   });
   $('btnKill').addEventListener('click', async () => {
+    if (IS_SITE_BOX) return;
     try {
       // Safety net: double-check ownership even though button should be disabled
       const runningClientId = await getRunningJobClientId();
@@ -2028,7 +2103,7 @@ function bindEvents() {
         await updateKillButtonState();
         return;
       }
-      await fetch(`${API_BASE}/api/interrupt`, { method: 'POST' });
+      await fetch(gpuUrl('/api/interrupt'), { method: 'POST' });
       log('Interrupted running job', 'error');
       setGenerating(false);
       setStatus('Interrupted', 'error');
@@ -2036,9 +2111,10 @@ function bindEvents() {
     } catch (e) { log('Kill failed: ' + e.message, 'error'); }
   });
   $('btnClearQueue').addEventListener('click', async () => {
+    if (IS_SITE_BOX) return;
     try {
       // Get current queue and find only our pending jobs
-      const resp = await fetch(`${API_BASE}/api/queue`);
+      const resp = await fetch(gpuUrl('/api/queue'));
       if (!resp.ok) { log('Clear failed: could not fetch queue', 'error'); return; }
       const q = await resp.json();
       const pending = q.queue_pending || [];
@@ -2056,7 +2132,7 @@ function bindEvents() {
       }
 
       // ComfyUI API: { delete: [prompt_id, ...] } removes specific entries
-      await fetch(`${API_BASE}/api/queue`, {
+      await fetch(gpuUrl('/api/queue'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ delete: myPendingIds })
@@ -2119,6 +2195,10 @@ function bindEvents() {
 
 // ── Generation ──
 async function startGeneration() {
+  if (IS_SITE_BOX) {
+    log('GPU is not available — browse mode only', 'error');
+    return;
+  }
   const unit = unitSelect.value;
   const skin = skinSelect.value;
   if (!unit || !skin) return;
@@ -2380,7 +2460,7 @@ async function startGeneration() {
     // Store export node ID for output polling
     currentExportNodeId = exportNodeId;
 
-    const resp = await fetch(`${API_BASE}/api/prompt`, {
+    const resp = await fetch(gpuUrl('/api/prompt'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: workflow, client_id: wsClientId })
@@ -2413,7 +2493,7 @@ async function pollHistory() {
   if (!currentPromptId) return;
 
   try {
-    const resp = await fetch(`${API_BASE}/api/history/${currentPromptId}`);
+    const resp = await fetch(gpuUrl(`/api/history/${currentPromptId}`));
     if (!resp.ok) return;
 
     const data = await resp.json();
@@ -2474,7 +2554,7 @@ async function pollHistory() {
       if (glbFile) {
         log('Generation complete: ' + glbFile, 'success');
         saveMetadata(glbFile);
-        const glbUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(glbFile)}&type=output`;
+        const glbUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(glbFile)}&type=output`;
         addToHistory(unitSelect.value, skinSelect.value, glbUrl, glbFile, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
@@ -2507,11 +2587,11 @@ async function findOutputFile(prefix) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
     try {
-      const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
+      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: ' + filename, 'success');
         saveMetadata(filename);
-        const foundUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`;
+        const foundUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output`;
         addToHistory(unitSelect.value, skinSelect.value, foundUrl, filename, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
@@ -2525,11 +2605,11 @@ async function findOutputFile(prefix) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
     try {
-      const resp = await fetch(`${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`, { method: 'HEAD' });
+      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: 3D/' + filename, 'success');
         saveMetadata(filename);
-        const found3dUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`;
+        const found3dUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`;
         addToHistory(unitSelect.value, skinSelect.value, found3dUrl, filename, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
@@ -2544,7 +2624,7 @@ async function findOutputFile(prefix) {
 }
 
 function loadModel(filename, subfolder) {
-  let modelUrl = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=output`;
+  let modelUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output`;
   if (subfolder) modelUrl += `&subfolder=${encodeURIComponent(subfolder)}`;
   loadModelFromUrl(modelUrl, filename);
 }
@@ -2653,11 +2733,12 @@ function setGenerating(active, msg) {
 }
 
 async function saveMetadata(filename) {
+  if (IS_SITE_BOX) return;
   if (!currentGenParams) return;
   try {
     const meta = { ...currentGenParams, filename };
     if (genStartTime) meta.duration_seconds = Math.round((Date.now() - genStartTime) / 1000);
-    await fetch(`${API_BASE}/fabricate/metadata`, {
+    await fetch(metadataUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(meta)
@@ -2727,7 +2808,7 @@ const btnThumbsDown = $('btnThumbsDown');
 // Fetch favorites from S3 and populate badge + dropdown
 async function loadFavorites() {
   try {
-    const resp = await fetch(`${API_BASE}/fabricate/api/favorites`);
+    const resp = await fetch(s3FavoritesUrl());
     if (resp.ok) {
       favoritesCache = await resp.json();
       favoritesCache.sort((a, b) => (b.favorited_at || '').localeCompare(a.favorited_at || ''));
@@ -2761,7 +2842,7 @@ function renderFavsDropdown() {
       const parts = spritePath.split('/');
       const filename = parts[parts.length - 1];
       const subfolder = parts.slice(0, -1).join('/');
-      img.src = `${API_BASE}/api/view?filename=${encodeURIComponent(filename)}&type=input&subfolder=${encodeURIComponent(subfolder)}`;
+      img.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=input&subfolder=${encodeURIComponent(subfolder)}`;
       img.alt = fav.unit;
       item.appendChild(img);
     }
@@ -2783,9 +2864,9 @@ async function loadFavoriteModel(fav) {
   skinSelect.dispatchEvent(new Event('change'));
 
   // Load the specific favorited model from S3
-  const url = `${API_BASE}/fabricate/api/s3-model/${encodeURIComponent(fav.unit)}/${encodeURIComponent(fav.skin)}?format=glb${fav.filename ? '&filename=' + encodeURIComponent(fav.filename) : ''}`;
+  const url = await s3ModelUrl(fav.unit, fav.skin, 'glb', fav.filename);
   previewTitle.textContent = `${formatUnitName(fav.unit)} — ${fav.skin}`;
-  loadModelFromUrl(url, fav.filename || 'favorite.glb');
+  if (url) loadModelFromUrl(url, fav.filename || 'favorite.glb');
   log(`Loaded favorite: ${formatUnitName(fav.unit)} [${fav.skin}]`, 'success');
 }
 
@@ -2932,7 +3013,7 @@ function toggleStar(index) {
 
   if (h.starred && h.filename) {
     // Add to S3 + local cache
-    fetch(`${API_BASE}/fabricate/api/favorite`, {
+    fetch(s3FavoriteUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename, params: h.params })
@@ -2945,7 +3026,7 @@ function toggleStar(index) {
     renderFavsDropdown();
   } else if (!h.starred && h.filename) {
     // Remove from S3 + local cache
-    fetch(`${API_BASE}/fabricate/api/unfavorite`, {
+    fetch(s3UnfavoriteUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename })
@@ -2962,7 +3043,7 @@ function toggleReject(index) {
   renderHistory();
 
   if (h.rejected && h.filename) {
-    fetch(`${API_BASE}/fabricate/api/reject`, {
+    fetch(s3RejectUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ unit: h.unit, skin: h.skin, filename: h.filename, params: h.params })
@@ -2972,7 +3053,7 @@ function toggleReject(index) {
 
 async function showFavoritesOverlay() {
   try {
-    const favs = favoritesCache.length > 0 ? favoritesCache : await fetch(`${API_BASE}/fabricate/api/favorites`).then(r => r.json());
+    const favs = favoritesCache.length > 0 ? favoritesCache : await fetch(s3FavoritesUrl()).then(r => r.json());
     if (favs.length === 0) {
       log('No favorites saved yet');
       return;
@@ -3064,7 +3145,7 @@ function initBatch() {
   async function populateBatchList() {
     // Fetch what's already in S3
     try {
-      const resp = await fetch(`${API_BASE}/fabricate/api/s3-list`);
+      const resp = await fetch(s3ListUrl());
       if (resp.ok) s3Existing = await resp.json();
     } catch {}
 
@@ -3159,7 +3240,7 @@ async function startBatch(units) {
     // Skip if exists in S3
     if (skipExisting) {
       try {
-        const resp = await fetch(`${API_BASE}/fabricate/api/s3-check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`);
+        const resp = await fetch(s3CheckUrl(unit, skin));
         if (resp.ok) {
           const data = await resp.json();
           if (data.exists && data.files?.length > 0) {
