@@ -7,6 +7,11 @@ const DB_PATH = process.env.DB_PATH || '/opt/fabricate/fabricate.db';
 
 let db;
 
+const ALLOWED_TRANSITIONS = {
+  pending: new Set(['running', 'completed', 'failed']),
+  running: new Set(['completed', 'failed']),
+};
+
 function now() {
   return Math.floor(Date.now() / 1000);
 }
@@ -77,6 +82,34 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_gpu_instances_status ON gpu_instances(status);
     CREATE INDEX IF NOT EXISTS idx_client_assignments_last_seen ON client_assignments(last_seen_at);
   `);
+
+  // Phase 4 migration: add prompt lifecycle columns if missing
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN started_at INTEGER`);
+  } catch (e) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN finished_at INTEGER`);
+  } catch (e) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN updated_at INTEGER`);
+  } catch (e) { /* column already exists */ }
+
+  // Phase 4 indexes
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_gpu_instances_slot_active
+      ON gpu_instances(slot) WHERE status IN ('launching', 'ready');
+    CREATE INDEX IF NOT EXISTS idx_prompts_status_gpu
+      ON prompts(status, gpu_instance_id);
+    CREATE INDEX IF NOT EXISTS idx_prompts_client_gpu_status
+      ON prompts(client_id, gpu_instance_id, status);
+    CREATE INDEX IF NOT EXISTS idx_client_assignments_gpu
+      ON client_assignments(gpu_instance_id);
+  `);
+
+  // Backfill updated_at for existing prompts that lack it
+  db.prepare(`
+    UPDATE prompts SET updated_at = submitted_at WHERE updated_at IS NULL
+  `).run();
 }
 
 // ── Query helpers ──
