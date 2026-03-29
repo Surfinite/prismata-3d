@@ -16,6 +16,7 @@ const HEALTH_CHECK_TIMEOUT_MS = 5000;
 
 let reconcilerInterval = null;
 let tickInProgress = false;
+let tickCount = 0;
 
 function start() {
   if (reconcilerInterval) return;
@@ -76,6 +77,12 @@ async function reconcile() {
 
   // 9. Clean up ephemeral client assignments (Phase 4)
   cleanEphemeralAssignments();
+
+  // 10. Prompt reconciliation (every 30s = every 6th tick)
+  tickCount++;
+  if (tickCount % 6 === 0) {
+    await reconcilePromptStatuses();
+  }
 }
 
 // ── Discord polling for pending requests ──
@@ -274,6 +281,79 @@ function cleanEphemeralAssignments() {
     if (count === 0) {
       db.clearClientAssignment(assignment.client_id);
     }
+  }
+}
+
+async function reconcilePromptStatuses() {
+  const readyGpus = db.getReadyGpus();
+
+  for (const gpu of readyGpus) {
+    const stalePrompts = db.getStaleActivePrompts(gpu.instance_id, 60);
+    if (stalePrompts.length === 0) continue;
+
+    let queue = null;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+      const resp = await fetch(`http://${gpu.private_ip}:8188/api/queue`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (resp.ok) {
+        queue = await resp.json();
+      }
+    } catch (err) {
+      console.warn(`[reconciler] Queue fetch failed for ${gpu.instance_id}: ${err.message}`);
+      continue;
+    }
+
+    const runningIds = new Set((queue.queue_running || []).map(j => j[1]));
+    const pendingIds = new Set((queue.queue_pending || []).map(j => j[1]));
+
+    for (const prompt of stalePrompts) {
+      if (runningIds.has(prompt.prompt_id)) {
+        db.updatePromptStatus(prompt.prompt_id, 'running');
+      } else if (pendingIds.has(prompt.prompt_id)) {
+        db.touchPrompt(prompt.prompt_id);
+      } else {
+        const resolved = await resolvePromptFromHistory(gpu.private_ip, prompt.prompt_id);
+        if (resolved === 'completed') {
+          db.updatePromptStatus(prompt.prompt_id, 'completed');
+        } else {
+          db.updatePromptStatus(prompt.prompt_id, 'failed');
+        }
+      }
+    }
+  }
+}
+
+async function resolvePromptFromHistory(gpuIp, promptId) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+    const resp = await fetch(`http://${gpuIp}:8188/api/history/${promptId}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) return 'failed';
+
+    const data = await resp.json();
+    const entry = data[promptId];
+    if (!entry) return 'failed';
+
+    if (entry.status?.status_str === 'error') return 'failed';
+
+    const outputs = entry.outputs || {};
+    for (const nodeId of Object.keys(outputs)) {
+      const nodeOutput = outputs[nodeId];
+      if (nodeOutput && Object.keys(nodeOutput).length > 0) {
+        return 'completed';
+      }
+    }
+
+    return 'failed';
+  } catch {
+    return 'failed';
   }
 }
 
