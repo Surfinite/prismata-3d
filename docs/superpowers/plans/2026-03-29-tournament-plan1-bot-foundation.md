@@ -6,7 +6,7 @@
 
 **Architecture:** The bot is a Node.js app living in the `prismata-ladder` repo alongside the existing Python backend. It uses `better-sqlite3` for direct SQLite access (WAL mode handles concurrent reads/writes with the Python export scripts). Slash commands replace the old message-based detection for new features, while legacy replay/unit detection continues via message events.
 
-**Tech Stack:** Node.js 22+, discord.js v14, better-sqlite3, zlib (built-in), node:http (built-in)
+**Tech Stack:** Node.js 20+, discord.js v14, better-sqlite3, zlib (built-in), node:http (built-in)
 
 **Spec:** `c:\libraries\prismata-3d\docs\superpowers\specs\2026-03-28-prismata-tournament-platform-design.md`
 
@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS verification_challenges (
     id INTEGER PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
+    claimed_username TEXT NOT NULL,
     challenge_bot TEXT NOT NULL,
     challenge_time_control INTEGER NOT NULL,
     challenge_randomizer_count INTEGER NOT NULL,
@@ -363,15 +364,15 @@ export function verifyUser(userId, prismataUsername) {
 
 // --- Verification challenge queries ---
 
-export function createVerificationChallenge(userId, bot, timeControl, randomizerCount) {
+export function createVerificationChallenge(userId, claimedUsername, bot, timeControl, randomizerCount) {
   const db = getDb();
   // Expire any pending challenges for this user
   db.prepare(
     "UPDATE verification_challenges SET status = 'expired' WHERE user_id = ? AND status = 'pending'"
   ).run(userId);
   const result = db.prepare(
-    'INSERT INTO verification_challenges (user_id, challenge_bot, challenge_time_control, challenge_randomizer_count) VALUES (?, ?, ?, ?)'
-  ).run(userId, bot, timeControl, randomizerCount);
+    'INSERT INTO verification_challenges (user_id, claimed_username, challenge_bot, challenge_time_control, challenge_randomizer_count) VALUES (?, ?, ?, ?, ?)'
+  ).run(userId, claimedUsername, bot, timeControl, randomizerCount);
   return db.prepare('SELECT * FROM verification_challenges WHERE id = ?').get(result.lastInsertRowid);
 }
 
@@ -1414,7 +1415,7 @@ export async function execute(interaction) {
 
     // Generate challenge
     const { botType, timeControl, randomizerCount } = generateChallenge();
-    createVerificationChallenge(user.id, botType, timeControl, randomizerCount);
+    createVerificationChallenge(user.id, prismataUsername, botType, timeControl, randomizerCount);
 
     const botDisplayName = BOT_DISPLAY_NAMES[botType] || botType;
 
@@ -1471,18 +1472,8 @@ export async function execute(interaction) {
       return interaction.editReply(`Failed to fetch replay: ${e.message}`);
     }
 
-    // Find the prismata username from the challenge start
-    // The user claimed a username in /verify start — we need to check the replay matches
-    // We get the username from the most recent start command by checking what name they claimed
-    // For now, check both player slots for a non-bot player
-    const p1 = replay.playerInfo?.[0];
-    const p2 = replay.playerInfo?.[1];
-    const humanPlayer = p1?.bot ? p2 : p1;
-    const prismataUsername = humanPlayer?.displayName;
-
-    if (!prismataUsername) {
-      return interaction.editReply('Could not identify the human player in this replay.');
-    }
+    // Validate the replay player name matches what they claimed in /verify start
+    const prismataUsername = challenge.claimed_username;
 
     const result = validateVerificationReplay(replay, {
       prismataUsername,

@@ -320,6 +320,7 @@ CREATE TABLE users (
 CREATE TABLE verification_challenges (
     id INTEGER PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
+    claimed_username TEXT NOT NULL,      -- Prismata username they claim to own
     challenge_bot TEXT NOT NULL,         -- e.g. 'MediumAI' (Adept Bot)
     challenge_time_control INTEGER NOT NULL,  -- e.g. 347
     challenge_randomizer_count INTEGER NOT NULL,  -- e.g. 6
