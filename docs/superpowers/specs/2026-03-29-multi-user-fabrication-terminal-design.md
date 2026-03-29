@@ -407,7 +407,9 @@ Fix `reconnectToRunningJobs()`, per-user Kill/Clear, queue position indicator, `
 ### Phase 5: Polish + Retire Discord Bot
 - Frontend failure states (Launch Failed, Spot Unavailable, Request Expired, etc.)
 - Session countdown display in frontend
+- GPU idle shutdown countdown — show "GPU shutting down in X:XX" when <5 min of idle time remains (reconciler tracks idle time via queue polling, frontend displays when approaching 20-min threshold)
 - GPU status indicators
+- Unit color coding — green text for units with models in S3, yellow for unskinned models
 - Remove cloudflared from GPU boot sequence
 - Retire Discord bot (after new control plane is proven stable)
 - Update AMI build scripts
