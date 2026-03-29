@@ -1914,7 +1914,7 @@ process.on('SIGINT', () => {
 **Files:**
 - Modify: `infra/frontend/index.html`
 
-The frontend needs major changes: (1) new states in `checkConnection()`, (2) Request Access button, (3) Wake GPU button, (4) session countdown display, (5) route all GPU API calls through `/api/gpu/...`, (6) WebSocket URL changed to `/api/gpu/ws`, (7) single `setTimeout` polling loop (no duplicate `setInterval` calls).
+The frontend needs major changes: (1) new states in `checkConnection()`, (2) Request Access button, (3) Wake GPU button, (4) session countdown display, (5) route all GPU API calls through `/api/gpu/...`, (6) WebSocket URL changed to `/api/gpu/ws`, (7) single `setTimeout` polling loop (no duplicate `setInterval` calls), (8) optional fabricator name field saved with generation metadata.
 
 This is the largest single change. The key areas to modify are:
 
@@ -1925,6 +1925,7 @@ This is the largest single change. The key areas to modify are:
 5. Add Request Access button to the header
 6. Add Wake GPU button to the header
 7. Add session countdown display
+8. Add optional fabricator name input (stored in localStorage, included in generation metadata)
 
 - [ ] **Step 1: Update route helpers (around line 1580)**
 
@@ -2484,6 +2485,59 @@ When on site box, pass `client_id` in the delete request body:
 - [ ] **Step 10: Update `loadManifest()` guard (around line 1923)**
 
 Change `if (!IS_SITE_BOX)` to `if (!IS_SITE_BOX || gpuAvailable)` for the GPU-specific paths.
+
+- [ ] **Step 11: Add optional fabricator name input**
+
+Add a text input for an optional nickname/username that persists in `localStorage` and gets included in generation metadata. This lets users see who fabricated each model.
+
+Add the input HTML near the generation settings section (or in the header bar):
+
+```html
+<div class="subsection-label">Fabricator</div>
+<input type="text" id="fabricatorName" class="mock-input" placeholder="Your name (optional)" maxlength="32" style="width:100%">
+```
+
+Add JavaScript to persist in localStorage:
+
+```js
+// After DOM elements are initialized:
+const fabricatorInput = $('fabricatorName');
+fabricatorInput.value = localStorage.getItem('fabricate_name') || '';
+fabricatorInput.addEventListener('change', () => {
+  const name = fabricatorInput.value.trim();
+  if (name) {
+    localStorage.setItem('fabricate_name', name);
+  } else {
+    localStorage.removeItem('fabricate_name');
+  }
+});
+```
+
+Include in `currentGenParams` (in `startGeneration()`, find where `currentGenParams` is built):
+
+```js
+  currentGenParams = {
+    unit, skin, steps, guidance_scale: guidance, seed, octree_resolution: octree,
+    model, attention, num_chunks: numChunks,
+    postprocess: doPostprocess, target_vertices: doPostprocess ? targetVerts : null,
+    texture: doTexture,
+    paint_model: doTexture ? paintModelSelect.value : null,
+    file_format: fileFormat,
+    white_bg: $('whiteBgToggle').checked,
+    fast_mode: $('fastToggle').checked,
+    fabricator: fabricatorInput.value.trim() || null,  // <-- add this line
+    timestamp: new Date().toISOString()
+  };
+```
+
+The `fabricator` field flows through the existing metadata pipeline — it gets saved to the `.params.json` sidecar by `saveMetadata()`, uploaded to S3 by `output-sync.sh`, and is available in the metadata shown in the UI. No server-side changes needed.
+
+- [ ] **Step 12: Commit frontend changes**
+
+```bash
+git add infra/frontend/index.html
+git commit -m "feat(fabricate): frontend state machine, wake GPU, session countdown, fabricator name"
+```
 
 ---
 
