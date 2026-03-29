@@ -1318,10 +1318,10 @@ label[title], .toggle-label[title], span[title] {
               </select>
             </div>
             <div>
-              <label for="attentionSelect" title="GPU attention implementation. SDPA is default and stable. Flash Attention 2 may be faster on supported GPUs.">Attention Mechanism</label>
+              <label for="attentionSelect" title="GPU attention implementation. SDPA is default and stable. SageAttn may be faster on supported GPUs.">Attention Mechanism</label>
               <select id="attentionSelect">
                 <option value="sdpa" selected>SDPA (Default)</option>
-                <option value="flash_attention_2">Flash Attention 2</option>
+                <option value="sageattn">SageAttn</option>
               </select>
             </div>
 
