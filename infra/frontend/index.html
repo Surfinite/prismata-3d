@@ -1790,6 +1790,7 @@ async function checkConnection() {
       connText.textContent = 'ComfyUI Online';
       // Check queue with per-user position
       const qResp = await fetch(`${API_BASE}/api/queue`);
+      if (!qResp.ok) return;
       const q = await qResp.json();
       const running = q.queue_running || [];
       const pending = q.queue_pending || [];
@@ -1819,7 +1820,18 @@ async function checkConnection() {
         }
       }
       queueStatus.textContent = statusText;
-      updateKillButtonState();
+      // Update kill button state using already-fetched queue data
+      const killBtn = $('btnKill');
+      if (myJobRunning) {
+        killBtn.disabled = false;
+        killBtn.title = 'Interrupt your running job';
+      } else if (totalRunning > 0) {
+        killBtn.disabled = true;
+        killBtn.title = "Another user's job is running";
+      } else {
+        killBtn.disabled = true;
+        killBtn.title = 'No running job';
+      }
     }
   } catch {
     // Don't show "Offline" during active generation — ComfyUI is just busy on GPU
@@ -2013,7 +2025,7 @@ function bindEvents() {
       const runningClientId = await getRunningJobClientId();
       if (runningClientId && runningClientId !== wsClientId) {
         log('Cannot kill — another user\'s job is running', 'error');
-        updateKillButtonState();
+        await updateKillButtonState();
         return;
       }
       await fetch(`${API_BASE}/api/interrupt`, { method: 'POST' });
