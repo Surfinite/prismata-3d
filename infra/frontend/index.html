@@ -1749,6 +1749,7 @@ function handleWsMessage(msg) {
 
 // ── Reconnect to running/pending jobs on page load ──
 async function reconnectToRunningJobs() {
+  if (IS_SITE_BOX) return;
   try {
     const resp = await fetch(gpuUrl('/api/queue'));
     if (!resp.ok) return;
@@ -1984,10 +1985,16 @@ function updateSpritePreview() {
   const parts = path.split('/');
   const filename = parts.pop();
   const subfolder = 'prismata-assets/' + parts.join('/');
-  spritePreview.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=input`;
-  spritePreview.style.display = 'block';
-  spritePlaceholder.style.display = 'none';
-  btnGenerate.disabled = false;
+  if (!IS_SITE_BOX) {
+    spritePreview.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=input`;
+    spritePreview.style.display = 'block';
+    spritePlaceholder.style.display = 'none';
+  } else {
+    spritePreview.src = '';  // Sprites not available in browse mode
+    spritePreview.style.display = 'none';
+    spritePlaceholder.style.display = 'flex';
+  }
+  if (!IS_SITE_BOX) btnGenerate.disabled = false;
 
   // Try to preload a previous generation for this unit/skin
   tryPreloadModel(unit, skin);
@@ -2718,7 +2725,7 @@ function setGenerating(active, msg) {
     genStartTime = Date.now();
     startElapsedTimer();
   } else {
-    btnGenerate.disabled = false;
+    if (!IS_SITE_BOX) btnGenerate.disabled = false;
     btnGenerate.classList.remove('generating');
     btnGenerate.textContent = 'Fabricate Unit';
     progressFill.classList.remove('indeterminate');
@@ -2842,7 +2849,11 @@ function renderFavsDropdown() {
       const parts = spritePath.split('/');
       const filename = parts[parts.length - 1];
       const subfolder = parts.slice(0, -1).join('/');
-      img.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=input&subfolder=${encodeURIComponent(subfolder)}`;
+      if (!IS_SITE_BOX) {
+        img.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=input&subfolder=${encodeURIComponent(subfolder)}`;
+      } else {
+        img.src = '';  // Sprites not available in browse mode
+      }
       img.alt = fav.unit;
       item.appendChild(img);
     }
