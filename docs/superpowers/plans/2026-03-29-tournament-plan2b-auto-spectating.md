@@ -15,6 +15,9 @@
 - Whisper send: `sayToServer("PrivateChat", peerID, text)`
 - Friend info: `"ServerPeerInfo"` and `"allPeersInfo"` messages
 
+**Deferred/Risks:**
+- Whisper verification (Method A) requires the bot account to be on the player's friend list in Prismata. This is an unverified assumption — it needs testing with a live bot to confirm that `PrivateChat` messages are received from non-friends, or whether a friend request/accept flow is required first.
+
 ---
 
 ## File Structure
@@ -135,6 +138,18 @@ class TournamentWatcher:
         Does NOT complete the match or advance bracket — that's the bot's job
         after the player confirms via /confirm or the dispute window passes.
         """
+        # If replay_json not provided, fetch from S3
+        if replay_json is None and replay_code:
+            try:
+                import urllib.request
+                import gzip
+                code = replay_code.replace('-', '')  # normalize
+                url = f"http://saved-games-alpha.s3-website-us-east-1.amazonaws.com/{replay_code}.json.gz"
+                with urllib.request.urlopen(url, timeout=10) as resp:
+                    replay_json = gzip.decompress(resp.read()).decode('utf-8')
+            except Exception as e:
+                print(f"[TournamentWatcher] Could not fetch replay from S3: {e}")
+
         try:
             conn = self._get_conn()
             # Get match details
@@ -562,7 +577,32 @@ git commit -m "feat: add WhisperVerificationHandler for Method A account verific
 
 In `headless_client.py`, find the message dispatch section in the `run()` loop where messages like `"BeginGame"`, `"GameOver"`, etc. are handled. Add a handler for `"PrivateChat"`.
 
-Add after the existing game message handlers (near the `GameOver`/`GameOverDraw` handlers):
+First, add a separate whisper callback list in `__init__` (separate from `game_callbacks`, since whispers arrive outside of active game spectating):
+
+```python
+self._whisper_callbacks = []
+```
+
+Add a method to register whisper callbacks:
+
+```python
+def on_whisper(self, callback):
+    """Register a callback for incoming whisper messages: callback(speaker, text)"""
+    self._whisper_callbacks.append(callback)
+```
+
+Add a method to emit whisper events:
+
+```python
+def _emit_whisper(self, speaker, text):
+    for cb in self._whisper_callbacks:
+        try:
+            cb(speaker, text)
+        except Exception as e:
+            print(f"[HeadlessClient] Whisper callback error: {e}")
+```
+
+Then add the PrivateChat handler in the message dispatch loop, after the existing game message handlers (near the `GameOver`/`GameOverDraw` handlers):
 
 ```python
 elif msg_type == "PrivateChat":
@@ -570,19 +610,7 @@ elif msg_type == "PrivateChat":
     if len(params) >= 3:
         speaker = params[1] if isinstance(params[1], str) else str(params[1])
         text = params[2] if isinstance(params[2], str) else str(params[2])
-        self._emit_game_event('whisper', speaker, text)
-```
-
-Also add `'whisper'` to the `game_callbacks` dict in `__init__`:
-
-```python
-self.game_callbacks = {
-    'game_start': [],
-    'game_click': [],
-    'game_turn': [],
-    'game_over': [],
-    'whisper': [],    # NEW
-}
+        self._emit_whisper(speaker, text)
 ```
 
 - [ ] **Step 2: Commit**
@@ -674,7 +702,7 @@ def make_whisper_callback(handler):
             print(f"  [Whisper] Verification attempt from {speaker}: {result['message']}")
     return on_whisper
 
-client.client.on_game_event('whisper', make_whisper_callback(whisper_handler))
+client.client.on_whisper(make_whisper_callback(whisper_handler))
 ```
 
 - [ ] **Step 4: Pass tournament_watcher and whisper_handler to each CoordinatedClient in main()**

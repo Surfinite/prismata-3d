@@ -166,6 +166,8 @@ def export_tournament_detail(conn, tournament_id):
             'matches': match_list,
         })
 
+    standings = export_standings(conn, tournament_id)
+
     return {
         'id': tournament['id'],
         'name': tournament['name'],
@@ -185,6 +187,7 @@ def export_tournament_detail(conn, tournament_id):
             for p in players
         ],
         'rounds': rounds_data,
+        'standings': standings,
     }
 
 
@@ -274,26 +277,40 @@ def export_recent_challenges(conn, limit=20):
     return result
 
 
-def export_all_tournament_data(db_path=None):
+def export_all_tournament_data(db_path=None, conn=None):
     """
     Export all tournament data as a single dict.
     Called by export_site_data.py.
+
+    Args:
+        db_path: Path to SQLite database (used if conn is None)
+        conn: Optional existing database connection (for reuse / standalone use)
     """
-    conn = get_conn(db_path)
+    own_conn = conn is None
+    if own_conn:
+        conn = get_conn(db_path)
 
     tournaments = export_tournaments(conn)
 
-    # Export detail for active/registration tournaments
+    # Export detail for active, registration, and recently completed tournaments
+    # (completed within last 30 days — excludes cancelled)
     tournament_details = {}
+    detail_ids = conn.execute("""
+        SELECT id FROM tournaments
+        WHERE status != 'cancelled'
+          AND (status != 'completed' OR created_at > datetime('now', '-30 days'))
+    """).fetchall()
+    detail_id_set = {r['id'] for r in detail_ids}
     for t in tournaments:
-        if t['status'] in ('active', 'registration'):
+        if t['id'] in detail_id_set:
             detail = export_tournament_detail(conn, t['id'])
             if detail:
                 tournament_details[t['id']] = detail
 
     challenges = export_recent_challenges(conn)
 
-    conn.close()
+    if own_conn:
+        conn.close()
 
     return {
         'tournaments': tournaments,
@@ -476,13 +493,11 @@ After writing `api.json`, also write tournament data to a separate file for the 
 
 ```python
     # Write tournament-specific export (for website tournament pages)
-    tournament_json_path = site_data_dir / 'tournaments.json'
+    tournament_json_path = OUTPUT_PATH.parent / 'tournaments.json'
     with open(tournament_json_path, 'w') as f:
         json.dump(data.get('tournament', {}), f, separators=(',', ':'))
     upload_json_to_s3(tournament_json_path, 'tournaments.json')
 ```
-
-Where `site_data_dir` is the path to `prismata-ladder-site/public/data/`.
 
 - [ ] **Step 4: Commit**
 
