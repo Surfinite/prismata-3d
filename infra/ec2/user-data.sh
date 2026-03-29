@@ -1,8 +1,12 @@
 #!/bin/bash
 # EC2 instance boot script. Runs as root via user-data.
-# ComfyUI, cloudflared, monitoring scripts, and systemd services are
+# ComfyUI, monitoring scripts, and systemd services are
 # pre-installed in the AMI. This script just starts them and injects
-# runtime config (webhook URL, tunnel URL).
+# runtime config (webhook URL).
+#
+# NOTE: Launch template v12 sets InstanceInitiatedShutdownBehavior: terminate.
+# The idle watchdog's "shutdown -h now" will TERMINATE (not just stop) this
+# instance, ensuring no zombie stopped instances accumulate.
 
 set -euo pipefail
 exec > /var/log/user-data.log 2>&1
@@ -50,30 +54,19 @@ for i in $(seq 1 60); do
     sleep 2
 done
 
-# 2. Start quick tunnel
-echo "--- Starting quick tunnel ---"
-cloudflared tunnel --url http://localhost:8188 --no-autoupdate --protocol http2 > /tmp/tunnel.log 2>&1 &
+# 1b. Warmup: pre-load v2.0 shape model into GPU VRAM
+# Runs before output-sync starts so warmup output won't upload to S3
+echo "--- Warming up GPU (shape model pre-load) ---"
+# Download latest warmup script from S3 (works even before AMI rebuild)
+aws s3 cp s3://prismata-3d-models/scripts/warmup.sh /opt/prismata-3d/warmup.sh --region "$REGION" 2>/dev/null || true
+chmod +x /opt/prismata-3d/warmup.sh 2>/dev/null || true
+bash /opt/prismata-3d/warmup.sh &
+WARMUP_PID=$!
 
-# Wait for tunnel URL (grep -oE for portability — no PCRE dependency)
-TUNNEL_URL=""
-for i in $(seq 1 30); do
-    sleep 1
-    TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log 2>/dev/null | head -1 || true)
-    if [ -n "$TUNNEL_URL" ]; then
-        break
-    fi
-done
-
-if [ -n "$TUNNEL_URL" ]; then
-    echo "Tunnel URL: $TUNNEL_URL"
-    python3 -c "
-import boto3
-ssm = boto3.client('ssm', region_name='$REGION')
-ssm.put_parameter(Name='/prismata-3d/tunnel-url/$INSTANCE_ID', Value='$TUNNEL_URL', Type='String', Overwrite=True)
-print('Tunnel URL written to SSM')
-" || echo "Failed to write tunnel URL to SSM"
-else
-    echo "WARNING: Tunnel URL not captured after 30s"
+# 2. Wait for warmup to finish before starting output-sync (prevents warmup files uploading to S3)
+if [ -n "${WARMUP_PID:-}" ]; then
+    echo "Waiting for GPU warmup to complete..."
+    wait "$WARMUP_PID" || echo "WARNING: Warmup exited with non-zero status (non-fatal)"
 fi
 
 # 3. Start monitoring and output sync (services are baked into AMI, just start them)

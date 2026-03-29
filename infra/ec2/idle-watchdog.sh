@@ -1,9 +1,11 @@
 #!/bin/bash
-# Monitors activity and shuts down after 10 minutes of inactivity.
+# Monitors activity and shuts down after 20 minutes of inactivity.
 # Runs as a systemd service.
+#
+# NOTE: shutdown -h now TERMINATES (not stops) this instance because
+# the launch template sets InstanceInitiatedShutdownBehavior: terminate.
 
-IDLE_THRESHOLD=600  # 10 minutes
-DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL:-}"
+IDLE_THRESHOLD=1200  # 20 minutes
 LAST_ACTIVITY_FILE="/tmp/last_activity"
 
 date +%s > "$LAST_ACTIVITY_FILE"
@@ -11,26 +13,12 @@ date +%s > "$LAST_ACTIVITY_FILE"
 log() { echo "[watchdog $(date +%H:%M:%S)] $*"; }
 
 check_activity() {
-    # Active WebSocket connections on port 8188
-    if ss -tn state established '( dport = :8188 or sport = :8188 )' | grep -q .; then
-        date +%s > "$LAST_ACTIVITY_FILE"
-        return 0
-    fi
-    # GPU processes running
+    # GPU processes running (= generation in progress)
     if nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | grep -q .; then
         date +%s > "$LAST_ACTIVITY_FILE"
         return 0
     fi
     return 1
-}
-
-notify_discord() {
-    local msg="$1"
-    if [ -n "$DISCORD_WEBHOOK_URL" ]; then
-        curl -s -H "Content-Type: application/json" \
-            -d "{\"content\": \"$msg\"}" \
-            "$DISCORD_WEBHOOK_URL" || true
-    fi
 }
 
 while true; do
@@ -42,8 +30,7 @@ while true; do
     idle=$((now - last))
 
     if [ "$idle" -ge "$IDLE_THRESHOLD" ]; then
-        log "Idle for ${idle}s. Shutting down..."
-        notify_discord "Shutting down after 10 min idle."
+        log "Idle for ${idle}s (threshold: ${IDLE_THRESHOLD}s). Shutting down..."
         sleep 60  # Grace period
 
         # Re-check after grace period

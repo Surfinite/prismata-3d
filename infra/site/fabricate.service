@@ -11,6 +11,8 @@ Environment=NODE_ENV=production
 Environment=PORT=3100
 Environment=AWS_REGION=us-east-1
 Environment=S3_BUCKET=prismata-3d-models
+Environment=DB_PATH=/opt/fabricate/fabricate.db
+EnvironmentFile=-/opt/fabricate/.env
 Restart=always
 RestartSec=5
 
