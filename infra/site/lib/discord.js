@@ -56,8 +56,8 @@ async function sendAccessRequest(requestId, requesterIp) {
       `IP: \`${requesterIp}\`\n` +
       `React with ✅ to approve or ❌ to deny.\n` +
       `Expires in 1 hour.\n` +
-      `<@337042753060823040>`,  // @Surfinite user ID
-    allowed_mentions: { users: ['337042753060823040'] },
+      `<@292290258777800704>`,  // @Surfinite user ID
+    allowed_mentions: { users: ['292290258777800704'] },
   };
 
   const resp = await fetch(webhookWaitUrl, {
@@ -85,7 +85,7 @@ async function checkReactions(channelId, messageId) {
   await ensureConfig();
   if (!discordBotToken || !channelId || !messageId) return null;
 
-  const OWNER_ID = '337042753060823040'; // Surfinite's Discord user ID
+  const OWNER_ID = '292290258777800704'; // Surfinite's Discord user ID
 
   // Check for ✅ reaction
   try {
