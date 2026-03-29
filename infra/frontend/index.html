@@ -1647,6 +1647,7 @@ function metadataUrl() {
 let manifest = {};
 let currentPromptId = null;
 let currentExportNodeId = null;
+let assignedGpuSlot = null; // 'A' or 'B', set by prompt response
 let pollInterval = null;
 let ws = null;
 let nodeStageMap = {}; // maps node ID → friendly stage name
@@ -2067,8 +2068,9 @@ async function checkConnection() {
             const myJobRunning = running.some(j => (j[3] || {}).client_id === wsClientId);
 
             let statusStr = '';
+            const gpuLabel = assignedGpuSlot ? `GPU ${assignedGpuSlot} | ` : '';
             if (totalRunning > 0 || totalPending > 0) {
-              statusStr = `Queue: ${totalRunning} running, ${totalPending} pending`;
+              statusStr = `${gpuLabel}Queue: ${totalRunning} running, ${totalPending} pending`;
               if (myJobRunning) {
                 statusStr += ' | Your job is running';
               } else if (myPosition > 0) {
@@ -2095,6 +2097,7 @@ async function checkConnection() {
         // GPU went away
         if (ws) { ws.close(); ws = null; }
         log('GPU offline', 'error');
+        assignedGpuSlot = null;
       }
     } catch {
       connDot.classList.remove('connected');
@@ -2740,6 +2743,16 @@ async function startGeneration() {
 
     const data = await resp.json();
     currentPromptId = data.prompt_id;
+    // Phase 4: track GPU assignment and reconnect WS if assigned to new GPU
+    if (data.assigned_gpu_slot) {
+      assignedGpuSlot = data.assigned_gpu_slot;
+    }
+    if (data.reconnect && ws) {
+      log(`Assigned to GPU ${data.assigned_gpu_slot} — reconnecting...`);
+      ws.close();
+      ws = null;
+      setTimeout(connectWebSocket, 200);
+    }
     log(`Job queued — prompt_id: ${currentPromptId}`);
     startPolling();
   } catch (err) {
@@ -2821,7 +2834,7 @@ async function pollHistory() {
       if (glbFile) {
         log('Generation complete: ' + glbFile, 'success');
         saveMetadata(glbFile);
-        const glbUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(glbFile)}&type=output`;
+        const glbUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(glbFile)}&type=output&promptId=${encodeURIComponent(currentPromptId)}`;
         addToHistory(unitSelect.value, skinSelect.value, glbUrl, glbFile, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
@@ -2854,11 +2867,11 @@ async function findOutputFile(prefix) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
     try {
-      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output`, { method: 'HEAD' });
+      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output&promptId=${encodeURIComponent(currentPromptId)}`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: ' + filename, 'success');
         saveMetadata(filename);
-        const foundUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output`;
+        const foundUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output&promptId=${encodeURIComponent(currentPromptId)}`;
         addToHistory(unitSelect.value, skinSelect.value, foundUrl, filename, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
@@ -2872,11 +2885,11 @@ async function findOutputFile(prefix) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
     try {
-      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`, { method: 'HEAD' });
+      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output&promptId=${encodeURIComponent(currentPromptId)}`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: 3D/' + filename, 'success');
         saveMetadata(filename);
-        const found3dUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output`;
+        const found3dUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output&promptId=${encodeURIComponent(currentPromptId)}`;
         addToHistory(unitSelect.value, skinSelect.value, found3dUrl, filename, currentGenParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
@@ -2891,7 +2904,7 @@ async function findOutputFile(prefix) {
 }
 
 function loadModel(filename, subfolder) {
-  let modelUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output`;
+  let modelUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output&promptId=${encodeURIComponent(currentPromptId)}`;
   if (subfolder) modelUrl += `&subfolder=${encodeURIComponent(subfolder)}`;
   loadModelFromUrl(modelUrl, filename);
 }
