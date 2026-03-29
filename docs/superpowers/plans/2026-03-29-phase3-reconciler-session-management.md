@@ -1,6 +1,8 @@
-# Phase 3: Reconciler + Session Management -- Implementation Plan (v2)
+# Phase 3: Reconciler + Session Management -- Implementation Plan (v3)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Session model — shared access windows (intentional design):** Sessions are global, not per-user. A Discord approval opens a shared fabrication window for anyone with the link. There is no per-user identity binding -- the Discord approval answers "should the GPU be available?" not "who should have access?" `/api/status` showing global state to everyone is correct behavior. This simplifies the system significantly: no auth tokens, no cookies, no user tracking.
 
 **Goal:** Turn the site box into an orchestrator that manages GPU lifecycle, session approval via Discord, and proxies all ComfyUI API/WebSocket traffic to GPU private IPs. Users click "Request Access," the owner approves via Discord reaction, and the reconciler auto-launches/monitors GPU instances. When the session expires or GPUs idle, they shut down automatically.
 
@@ -27,12 +29,12 @@
 **Prerequisites:** Phase 1 (queue isolation) and Phase 2 (always-on frontend) are deployed and working.
 
 **Key constraints:**
-- Only the reconciler module calls EC2 APIs (launch, describe, terminate). This includes `forceLaunch()` which is part of the reconciler module. No API endpoint outside the reconciler directly calls EC2.
+- The reconciler module owns EC2 launch (`RunInstances`) and describe (`DescribeInstances`). It does NOT call `TerminateInstances` in Phase 3. Instances self-terminate via the idle watchdog's `shutdown -h now` + launch template `InstanceInitiatedShutdownBehavior: terminate`. The IAM role already has `ec2:TerminateInstances` (from the existing `prismata-3d-bot-ec2` policy) -- available for Phase 4 if needed. `forceLaunch()` is part of the reconciler module. No API endpoint outside the reconciler directly calls EC2.
 - `/api/status` is strictly read-only -- it never triggers launches or side effects.
 - Discord bot token and webhook URL are stored in SSM parameters (already exist for the bot).
 - The launch template name is `prismata-3d-gen`, instances are g5.xlarge spot.
 - The GPU security group is `sg-0fdc130ad1d5dc373`.
-- Max 2 GPU instances (Phase 3 implements single-GPU; multi-GPU sticky assignment is Phase 4).
+- **Hard limit: 1 GPU in Phase 3.** Always use slot 'A'. If any GPU is in `launching` or `ready` state, refuse new launches. `forceLaunch()` must also refuse if any GPU exists. The `slot` column is kept in the schema for Phase 4, but always insert 'A'. Multi-GPU sticky assignment is Phase 4.
 
 ---
 
@@ -129,6 +131,7 @@ function getDb() {
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+  db.pragma('busy_timeout = 5000');
   initSchema();
   return db;
 }
@@ -165,7 +168,8 @@ function initSchema() {
       launched_at INTEGER NOT NULL,
       ready_at INTEGER,
       gone_at INTEGER,
-      session_id INTEGER REFERENCES sessions(id)
+      session_id INTEGER REFERENCES sessions(id),
+      health_failures INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS client_assignments (
@@ -182,6 +186,11 @@ function initSchema() {
       submitted_at INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending'
     );
+
+    CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
+    CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
+    CREATE INDEX IF NOT EXISTS idx_gpu_instances_status ON gpu_instances(status);
+    CREATE INDEX IF NOT EXISTS idx_client_assignments_last_seen ON client_assignments(last_seen_at);
   `);
 }
 
@@ -218,11 +227,18 @@ function createRequest(ip) {
   const d = getDb();
   const ts = now();
   const expiresAt = ts + 3600; // 1h TTL
-  const info = d.prepare(`
-    INSERT INTO requests (status, requested_at, expires_at, requester_ip)
-    VALUES ('pending', ?, ?, ?)
-  `).run(ts, expiresAt, ip);
-  return d.prepare('SELECT * FROM requests WHERE id = ?').get(info.lastInsertRowid);
+
+  // DB-level protection against duplicate pending requests (Fix I)
+  const create = d.transaction(() => {
+    const existing = getPendingRequest();
+    if (existing) throw new Error('Request already pending');
+    const info = d.prepare(`
+      INSERT INTO requests (status, requested_at, expires_at, requester_ip)
+      VALUES ('pending', ?, ?, ?)
+    `).run(ts, expiresAt, ip);
+    return d.prepare('SELECT * FROM requests WHERE id = ?').get(info.lastInsertRowid);
+  });
+  return create();
 }
 
 function deleteRequest(requestId) {
@@ -290,18 +306,24 @@ function createSessionDirect(hours) {
   const ts = now();
   const expiresAt = ts + hours * 3600;
 
-  // Prevent multiple active sessions: refuse if one already exists
-  const existing = getActiveSession();
-  if (existing) {
-    throw new Error(`Active session ${existing.id} already exists (expires at ${existing.expires_at})`);
-  }
+  // Transaction: refuse if active session exists, expire pending requests, create session (Fix G, Fix I)
+  const create = d.transaction(() => {
+    const existing = getActiveSession();
+    if (existing) {
+      throw new Error(`Active session ${existing.id} already exists (expires at ${existing.expires_at})`);
+    }
 
-  // Create session with wake_requested_at set (auto-wake on direct creation)
-  const info = d.prepare(`
-    INSERT INTO sessions (status, approved_at, expires_at, wake_requested_at)
-    VALUES ('active', ?, ?, ?)
-  `).run(ts, expiresAt, ts);
-  return d.prepare('SELECT * FROM sessions WHERE id = ?').get(info.lastInsertRowid);
+    // Expire all pending requests before creating the session
+    d.prepare(`UPDATE requests SET status = 'expired' WHERE status = 'pending'`).run();
+
+    // Create session with wake_requested_at set (auto-wake on direct creation)
+    const info = d.prepare(`
+      INSERT INTO sessions (status, approved_at, expires_at, wake_requested_at)
+      VALUES ('active', ?, ?, ?)
+    `).run(ts, expiresAt, ts);
+    return d.prepare('SELECT * FROM sessions WHERE id = ?').get(info.lastInsertRowid);
+  });
+  return create();
 }
 
 function setWakeRequested(sessionId) {
@@ -333,9 +355,16 @@ function getReadyGpu() {
 function registerGpuInstance(instanceId, slot, sessionId) {
   const d = getDb();
   const ts = now();
+  // UPSERT instead of INSERT OR REPLACE to preserve columns not in the SET clause (Fix J)
   d.prepare(`
-    INSERT OR REPLACE INTO gpu_instances (instance_id, slot, status, launched_at, session_id)
-    VALUES (?, ?, 'launching', ?, ?)
+    INSERT INTO gpu_instances (instance_id, slot, status, launched_at, session_id, health_failures)
+    VALUES (?, ?, 'launching', ?, ?, 0)
+    ON CONFLICT(instance_id) DO UPDATE SET
+      slot = excluded.slot,
+      status = excluded.status,
+      launched_at = excluded.launched_at,
+      session_id = excluded.session_id,
+      health_failures = 0
   `).run(instanceId, slot, ts, sessionId);
 }
 
@@ -357,12 +386,24 @@ function markGpuGone(instanceId) {
   d.prepare('DELETE FROM client_assignments WHERE gpu_instance_id = ?').run(instanceId);
 }
 
-function getNextSlot() {
+// Health failure tracking (Fix D)
+function incrementHealthFailures(instanceId) {
   const d = getDb();
-  const usedSlots = d.prepare("SELECT slot FROM gpu_instances WHERE status IN ('launching', 'ready')").all().map(r => r.slot);
-  if (!usedSlots.includes('A')) return 'A';
-  if (!usedSlots.includes('B')) return 'B';
-  return null; // Both slots taken
+  d.prepare(`UPDATE gpu_instances SET health_failures = health_failures + 1 WHERE instance_id = ?`).run(instanceId);
+  return d.prepare('SELECT health_failures FROM gpu_instances WHERE instance_id = ?').get(instanceId)?.health_failures || 0;
+}
+
+function resetHealthFailures(instanceId) {
+  const d = getDb();
+  d.prepare(`UPDATE gpu_instances SET health_failures = 0 WHERE instance_id = ?`).run(instanceId);
+}
+
+// Phase 3: hard-limit to 1 GPU, always slot 'A' (Fix B)
+// getNextSlot() removed -- always use 'A'. The slot column is kept for Phase 4.
+function canLaunchGpu() {
+  const d = getDb();
+  const active = d.prepare("SELECT COUNT(*) as cnt FROM gpu_instances WHERE status IN ('launching', 'ready')").get();
+  return active.cnt === 0;
 }
 
 // ── Client assignment helpers ──
@@ -493,7 +534,9 @@ module.exports = {
   registerGpuInstance,
   markGpuReady,
   markGpuGone,
-  getNextSlot,
+  incrementHealthFailures,
+  resetHealthFailures,
+  canLaunchGpu,
   getClientAssignment,
   assignClient,
   touchClient,
@@ -595,7 +638,8 @@ async function sendAccessRequest(requestId, requesterIp) {
   }
 
   const msg = await resp.json();
-  return { messageId: msg.id, channelId: msg.channel_id };
+  // Use webhook's channel_id, fall back to SSM-configured channel (Fix H)
+  return { messageId: msg.id, channelId: msg.channel_id || discordChannelId };
 }
 
 /**
@@ -650,7 +694,7 @@ module.exports = {
 };
 ```
 
-**Note:** The Surfinite Discord user ID `337042753060823040` is hardcoded. The SSM parameter `/prismata-3d/discord-bot-token` must contain the bot token. The SSM parameter `/prismata-3d/discord-channel-id` stores the channel ID for fallback but is typically extracted from the webhook response. If the webhook returns a channel_id, that is used; otherwise the SSM param is used. `sendAccessRequest` now throws on failure so the caller can roll back the request row.
+**Note:** The Surfinite Discord user ID `337042753060823040` is hardcoded. The SSM parameter `/prismata-3d/discord-bot-token` must contain the bot token. The SSM parameter `/prismata-3d/discord-channel-id` stores the channel ID for fallback. `sendAccessRequest` uses the webhook response's `channel_id` with fallback to the SSM-configured channel (Fix H). `sendAccessRequest` throws on failure so the caller can roll back the request row.
 
 ---
 
@@ -821,7 +865,7 @@ async function syncInstanceState(ec2Instances, session) {
   // Uses Slot and SessionId tags from EC2 for accurate rediscovery on site box restart
   for (const ec2Inst of ec2Instances) {
     if (!dbIds.has(ec2Inst.instanceId)) {
-      const slot = ec2Inst.slot || db.getNextSlot() || 'A';
+      const slot = ec2Inst.slot || 'A'; // Phase 3: always slot A (Fix B)
       const sessId = ec2Inst.sessionId || session?.id || null;
       console.log(`[reconciler] Discovered instance ${ec2Inst.instanceId} (slot=${slot}, session=${sessId}), registering`);
       db.registerGpuInstance(ec2Inst.instanceId, slot, sessId);
@@ -875,30 +919,48 @@ async function healthCheckInstances() {
     if (inst.status === 'launching' && healthy) {
       console.log(`[reconciler] Instance ${inst.instance_id} is healthy, marking ready`);
       db.markGpuReady(inst.instance_id, inst.private_ip);
+      db.resetHealthFailures(inst.instance_id);
       db.setLaunchLock(false);
+
+      // Clear wake_requested_at only AFTER GPU becomes ready, not after RunInstances (Fix C)
+      const session = db.getActiveSession();
+      if (session && session.wake_requested_at) {
+        db.clearWakeRequested(session.id);
+      }
+    }
+
+    if (inst.status === 'ready' && healthy) {
+      // Reset health failure counter on successful check (Fix D)
+      db.resetHealthFailures(inst.instance_id);
     }
 
     if (inst.status === 'ready' && !healthy) {
-      // Could be temporarily busy (GPU under load). Don't mark gone immediately.
-      // Only mark gone if the instance is actually gone from EC2 (handled in syncInstanceState).
-      // Log a warning but take no action.
-      console.warn(`[reconciler] Health check failed for ready instance ${inst.instance_id} — may be under load`);
+      // Track consecutive health check failures (Fix D)
+      const failures = db.incrementHealthFailures(inst.instance_id);
+      console.warn(`[reconciler] Health check failed for ready instance ${inst.instance_id} (${failures}/6)`);
+      if (failures >= 6) {
+        // 6 consecutive failures (30 seconds at 5s interval) → mark gone
+        console.error(`[reconciler] Instance ${inst.instance_id} unhealthy after ${failures} consecutive failures, marking gone`);
+        db.markGpuGone(inst.instance_id);
+        // If wake is still requested, reconciler will relaunch on next tick
+      }
     }
   }
 
-  // Check for launch timeout
+  // Check for launch timeout (Fix C: launch failure detection)
   const lock = db.getLaunchLock();
   if (lock.inProgress && lock.timestamp) {
     const elapsed = Date.now() - lock.timestamp;
     if (elapsed > LAUNCH_TIMEOUT_MS) {
       console.error('[reconciler] Launch timed out after 5 minutes');
-      // Mark any launching instances as gone
+      // Mark any launching instances as gone, but leave wake_requested_at so reconciler retries
       const launching = db.getGpuInstances('launching');
       for (const inst of launching) {
         db.markGpuGone(inst.instance_id);
       }
       db.setLaunchLock(false);
       db.setLaunchCooldown();
+      // wake_requested_at is intentionally NOT cleared here — allows automatic retry (Fix C)
     }
   }
 }
@@ -921,12 +983,13 @@ async function reconcileDesiredState(session) {
 }
 
 async function launchGpu(session) {
-  const slot = db.getNextSlot();
-  if (!slot) {
-    console.log('[reconciler] No available GPU slots');
+  // Phase 3: hard-limit to 1 GPU (Fix B)
+  if (!db.canLaunchGpu()) {
+    console.log('[reconciler] GPU already launching or ready, refusing new launch');
     return;
   }
 
+  const slot = 'A'; // Phase 3: always slot A (Fix B)
   console.log(`[reconciler] Launching GPU instance (slot ${slot}) for session ${session.id}`);
   db.setLaunchLock(true);
 
@@ -957,8 +1020,7 @@ async function launchGpu(session) {
     console.log(`[reconciler] Launched instance ${instanceId}`);
     db.registerGpuInstance(instanceId, slot, session.id);
 
-    // Clear wake flag after successful launch
-    db.clearWakeRequested(session.id);
+    // wake_requested_at is NOT cleared here — only cleared when GPU becomes ready (Fix C)
   } catch (err) {
     console.error('[reconciler] Launch failed:', err.message);
     db.setLaunchLock(false);
@@ -973,6 +1035,8 @@ async function forceLaunch() {
   if (!session) throw new Error('No active session');
   const lock = db.getLaunchLock();
   if (lock.inProgress) throw new Error('Launch already in progress');
+  // Refuse if any GPU exists (Fix B)
+  if (!db.canLaunchGpu()) throw new Error('GPU already launching or ready');
   // Set wake flag and launch
   db.setWakeRequested(session.id);
   await launchGpu(session);
@@ -1142,6 +1206,15 @@ const db = require('../lib/db');
 const router = express.Router();
 
 // GET /api/status — strictly read-only, never triggers side effects
+//
+// State precedence (Fix P — explicit and ordered):
+//   1. No active session → 'browse' (or 'requesting', 'request_expired', 'request_denied', 'session_expired')
+//   2. Pending request → 'requesting'
+//   3. Active session + GPU ready → 'ready'
+//   4. Active session + GPU launching → 'starting'
+//   5. Active session + launch cooldown active + no GPU → 'launch_failed'
+//   6. Active session + wake requested + no GPU → 'starting' (will launch on next tick)
+//   7. Active session + no GPU + no wake → 'gpu_idle' (show Wake GPU button)
 router.get('/status', (req, res) => {
   const session = db.getActiveSession();
   const pendingRequest = db.getPendingRequest();
@@ -1161,24 +1234,26 @@ router.get('/status', (req, res) => {
       ? `${remainingHrs}h ${remainingMinPart}m`
       : `${remainingMin}m`;
 
-    // Determine if GPU is idle (session active, no GPU, no wake requested)
-    const gpuIdle = readyGpus.length === 0 && launchingGpus.length === 0 && !session.wake_requested_at;
-
+    // State precedence for active sessions (Fix P):
+    // 3. GPU ready
     if (readyGpus.length > 0) {
       state = 'ready';
       message = `GPU online — session expires in ${countdown}`;
+    // 4. GPU launching
     } else if (launchingGpus.length > 0 || lock.inProgress) {
       state = 'starting';
       message = `GPU starting up (~4 min) — session expires in ${countdown}`;
-    } else if (session.wake_requested_at) {
-      // Wake requested but not yet launched (reconciler will pick up next tick)
-      state = 'starting';
-      message = `GPU starting up — session expires in ${countdown}`;
-    } else if (lock.cooldownUntil && Date.now() < lock.cooldownUntil) {
+    // 5. Launch cooldown (failed) — checked before wake_requested because cooldown
+    //    implies a recent failure even if wake is still set
+    } else if (lock.cooldownUntil && Date.now() < lock.cooldownUntil && !session.wake_requested_at) {
       state = 'launch_failed';
       message = 'GPU launch failed — retrying shortly';
+    // 6. Wake requested but not yet launched (reconciler will pick up next tick)
+    } else if (session.wake_requested_at) {
+      state = 'starting';
+      message = `GPU starting up — session expires in ${countdown}`;
+    // 7. No GPU, no wake → idle
     } else {
-      // Session active but GPU idle (terminated after watchdog timeout)
       state = 'gpu_idle';
       message = `GPU offline — click Wake GPU to start (~4 min). Session expires in ${countdown}`;
     }
@@ -1373,14 +1448,19 @@ router.post('/prompt', async (req, res) => {
       body: JSON.stringify(req.body),
     });
 
-    const data = await gpuResp.json();
-
-    // Record prompt in DB with the actual GPU instance that was used
-    if (data.prompt_id) {
-      db.recordPrompt(data.prompt_id, clientId, gpuInfo.instanceId);
+    // Proxy JSON parsing with content-type fallback (Fix O)
+    const contentType = gpuResp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await gpuResp.json();
+      // Record prompt in DB with the actual GPU instance that was used
+      if (data.prompt_id) {
+        db.recordPrompt(data.prompt_id, clientId, gpuInfo.instanceId);
+      }
+      res.status(gpuResp.status).json(data);
+    } else {
+      const text = await gpuResp.text();
+      res.status(gpuResp.status).type(contentType || 'text/plain').send(text);
     }
-
-    res.status(gpuResp.status).json(data);
   } catch (err) {
     console.error('[gpu-proxy] Prompt forward error:', err.message);
     res.status(502).json({ error: 'Failed to reach GPU', detail: err.message });
@@ -1400,15 +1480,25 @@ router.get('/queue', async (req, res) => {
 
   try {
     const gpuResp = await fetch(`http://${gpuInfo.ip}:8188/api/queue`);
-    const data = await gpuResp.json();
-    res.json(data);
+    // Proxy JSON parsing with content-type fallback (Fix O)
+    const contentType = gpuResp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await gpuResp.json();
+      res.status(gpuResp.status).json(data);
+    } else {
+      const text = await gpuResp.text();
+      res.status(gpuResp.status).type(contentType || 'text/plain').send(text);
+    }
   } catch (err) {
     res.status(502).json({ error: 'Failed to reach GPU', detail: err.message });
   }
 });
 
-// GET /api/gpu/history/:promptId
+// GET /api/gpu/history/:promptId (Fix M: enforce active session)
 router.get('/history/:promptId', async (req, res) => {
+  const denied = checkAccess(res);
+  if (denied) return;
+
   const promptId = req.params.promptId;
 
   // Look up which GPU has this prompt
@@ -1424,13 +1514,19 @@ router.get('/history/:promptId', async (req, res) => {
   }
 
   if (!gpuIp) {
-    return res.status(503).json({ status: 'gpu_offline', session_active: !!db.getActiveSession() });
+    return res.status(503).json({ status: 'gpu_offline', session_active: true });
   }
 
   try {
     const gpuResp = await fetch(`http://${gpuIp}:8188/api/history/${promptId}`);
-    const data = await gpuResp.json();
-    res.json(data);
+    const contentType = gpuResp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await gpuResp.json();
+      res.status(gpuResp.status).json(data);
+    } else {
+      const text = await gpuResp.text();
+      res.status(gpuResp.status).type(contentType || 'text/plain').send(text);
+    }
   } catch (err) {
     res.status(502).json({ error: 'Failed to reach GPU', detail: err.message });
   }
@@ -1453,38 +1549,76 @@ router.post('/metadata', async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body),
     });
-    const data = await gpuResp.json();
-    res.status(gpuResp.status).json(data);
+    // Proxy JSON parsing with content-type fallback (Fix O)
+    const contentType = gpuResp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await gpuResp.json();
+      res.status(gpuResp.status).json(data);
+    } else {
+      const text = await gpuResp.text();
+      res.status(gpuResp.status).type(contentType || 'text/plain').send(text);
+    }
   } catch (err) {
     res.status(502).json({ error: 'Failed to reach GPU', detail: err.message });
   }
 });
 
-// GET /api/gpu/system_stats
+// GET /api/gpu/system_stats (Fix M: enforce active session)
 router.get('/system_stats', async (req, res) => {
+  const denied = checkAccess(res);
+  if (denied) return;
+
   const gpu = db.getReadyGpu();
   if (!gpu || !gpu.private_ip) {
-    return res.status(503).json({ status: 'gpu_offline', session_active: !!db.getActiveSession() });
+    return res.status(503).json({ status: 'gpu_offline', session_active: true });
   }
 
   try {
     const gpuResp = await fetch(`http://${gpu.private_ip}:8188/system_stats`);
-    const data = await gpuResp.json();
-    res.json(data);
+    const contentType = gpuResp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await gpuResp.json();
+      res.status(gpuResp.status).json(data);
+    } else {
+      const text = await gpuResp.text();
+      res.status(gpuResp.status).type(contentType || 'text/plain').send(text);
+    }
   } catch (err) {
     res.status(502).json({ error: 'Failed to reach GPU', detail: err.message });
   }
 });
 
-// POST /api/gpu/interrupt
+// POST /api/gpu/interrupt (Fix E: server-side ownership enforcement)
 router.post('/interrupt', async (req, res) => {
   const denied = checkAccess(res);
   if (denied) return;
 
-  const clientId = req.body.client_id;
+  const clientId = req.headers['x-client-id'] || req.body.client_id;
+  if (!clientId) {
+    return res.status(400).json({ error: 'X-Client-Id header or client_id required' });
+  }
+
   const gpuInfo = getGpuForClient(clientId);
   if (!gpuInfo) {
     return res.status(503).json({ status: 'gpu_offline', session_active: true });
+  }
+
+  // Server-side ownership check: verify running job belongs to this client (Fix E)
+  try {
+    const queueResp = await fetch(`http://${gpuInfo.ip}:8188/api/queue`);
+    if (queueResp.ok) {
+      const queue = await queueResp.json();
+      const running = queue.queue_running || [];
+      if (running.length > 0) {
+        const runningExtraData = running[0][3] || {};
+        if (runningExtraData.client_id && runningExtraData.client_id !== clientId) {
+          return res.status(403).json({ error: 'Cannot interrupt another client\'s job' });
+        }
+      }
+    }
+  } catch (err) {
+    // If queue check fails, allow the interrupt (fail-open for usability)
+    console.warn('[gpu-proxy] Queue check failed during interrupt ownership check:', err.message);
   }
 
   try {
@@ -1495,35 +1629,63 @@ router.post('/interrupt', async (req, res) => {
   }
 });
 
-// POST /api/gpu/queue (delete items)
+// POST /api/gpu/queue (delete items — Fix E: server-side ownership enforcement)
 router.post('/queue', async (req, res) => {
   const denied = checkAccess(res);
   if (denied) return;
 
-  const clientId = req.body.client_id;
+  const clientId = req.headers['x-client-id'] || req.body.client_id;
+  if (!clientId) {
+    return res.status(400).json({ error: 'X-Client-Id header or client_id required' });
+  }
+
   const gpuInfo = getGpuForClient(clientId);
   if (!gpuInfo) {
     return res.status(503).json({ status: 'gpu_offline', session_active: true });
   }
 
+  // Server-side ownership: ignore client-supplied delete IDs, filter by caller's client_id (Fix E)
   try {
+    const queueResp = await fetch(`http://${gpuInfo.ip}:8188/api/queue`);
+    if (!queueResp.ok) {
+      return res.status(502).json({ error: 'Failed to fetch queue from GPU' });
+    }
+    const queue = await queueResp.json();
+    const pending = queue.queue_pending || [];
+    const ownedIds = pending
+      .filter(job => (job[3] || {}).client_id === clientId)
+      .map(job => job[1]);
+
+    if (ownedIds.length === 0) {
+      return res.json({ status: 'ok', deleted: [] });
+    }
+
     const gpuResp = await fetch(`http://${gpuInfo.ip}:8188/api/queue`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({ delete: ownedIds }),
     });
-    const data = await gpuResp.json();
-    res.status(gpuResp.status).json(data);
+    const contentType = gpuResp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await gpuResp.json();
+      res.status(gpuResp.status).json(data);
+    } else {
+      const text = await gpuResp.text();
+      res.status(gpuResp.status).type(contentType || 'text/plain').send(text);
+    }
   } catch (err) {
     res.status(502).json({ error: 'Failed to reach GPU', detail: err.message });
   }
 });
 
-// GET /api/gpu/view — proxy file downloads from GPU output dir
+// GET /api/gpu/view — proxy file downloads from GPU output dir (Fix M: enforce active session)
 router.get('/view', async (req, res) => {
+  const denied = checkAccess(res);
+  if (denied) return;
+
   const gpu = db.getReadyGpu();
   if (!gpu || !gpu.private_ip) {
-    return res.status(503).json({ status: 'gpu_offline' });
+    return res.status(503).json({ status: 'gpu_offline', session_active: true });
   }
 
   const qs = new URLSearchParams(req.query).toString();
@@ -1532,8 +1694,9 @@ router.get('/view', async (req, res) => {
     if (!gpuResp.ok) {
       return res.status(gpuResp.status).end();
     }
-    // Pipe response headers and body
-    res.set('Content-Type', gpuResp.headers.get('content-type') || 'application/octet-stream');
+    // Pipe response headers and body (Fix O: content-type aware proxying)
+    const contentType = gpuResp.headers.get('content-type') || 'application/octet-stream';
+    res.set('Content-Type', contentType);
     const arrayBuffer = await gpuResp.arrayBuffer();
     res.send(Buffer.from(arrayBuffer));
   } catch (err) {
@@ -1637,7 +1800,13 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
+  // Require clientId query param (Fix L)
   const clientId = url.searchParams.get('clientId');
+  if (!clientId) {
+    socket.write('HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nclientId query parameter required\r\n');
+    socket.destroy();
+    return;
+  }
 
   // Find GPU for this client
   let gpuIp = null;
@@ -2681,7 +2850,7 @@ Environment=PORT=3100
 Environment=AWS_REGION=us-east-1
 Environment=S3_BUCKET=prismata-3d-models
 Environment=DB_PATH=/opt/fabricate/fabricate.db
-EnvironmentFile=/opt/fabricate/.env
+EnvironmentFile=-/opt/fabricate/.env
 Restart=always
 RestartSec=5
 
@@ -2874,7 +3043,7 @@ The Discord webhook URL (`/prismata-3d/discord-webhook-url`) should already exis
 
 ### Task 17: Verify IAM permissions for site box
 
-The site box IAM role needs EC2 describe/run permissions and SSM read access.
+The site box IAM role needs EC2 describe/run permissions and SSM read access. Note: `ec2:TerminateInstances` is NOT needed for Phase 3 -- instances self-terminate via watchdog `shutdown -h now` + launch template `InstanceInitiatedShutdownBehavior: terminate` (Fix F). The existing `prismata-3d-bot-ec2` policy already has `ec2:TerminateInstances` available for Phase 4 if needed.
 
 - [ ] **Step 1: Verify IAM policy**
 
