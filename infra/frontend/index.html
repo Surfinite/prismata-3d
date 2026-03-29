@@ -1317,8 +1317,13 @@ label[title], .toggle-label[title], span[title] {
                 <option value="hunyuan3d/hunyuan3d-dit-v2-mini-Turbo-fp16.safetensors">v2-mini Turbo — Fast Preview</option>
               </select>
             </div>
-            <!-- Attention mechanism: hardcoded to SDPA (only supported option without extra packages) -->
-            <input type="hidden" id="attentionSelect" value="sdpa">
+            <div>
+              <label for="attentionSelect" title="GPU attention implementation. SDPA is default and stable. SageAttn may be faster on some models.">Attention Mechanism</label>
+              <select id="attentionSelect">
+                <option value="sdpa" selected>SDPA (Default)</option>
+                <option value="sageattn">SageAttn</option>
+              </select>
+            </div>
 
             <!-- Mesh Quality -->
             <div class="subsection-label">Mesh Quality</div>

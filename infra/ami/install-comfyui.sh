@@ -54,7 +54,7 @@ cd ../../..
 pip install --no-cache-dir -r requirements_extras.txt || echo "Some extras failed — non-critical"
 
 # Additional runtime deps discovered during first run
-pip install --no-cache-dir omegaconf rembg onnxruntime timm open_clip_torch segment_anything kornia
+pip install --no-cache-dir omegaconf rembg onnxruntime timm open_clip_torch segment_anything kornia sageattention
 
 # Pre-download the shape model weights only (~2GB).
 # The texture/paint models auto-download on first generation via the wrapper.
