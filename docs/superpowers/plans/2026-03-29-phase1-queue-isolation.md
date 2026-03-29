@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-29-multi-user-fabrication-terminal-design.md` — "Multi-User Queue Isolation" section
 
+**Note:** Line numbers are approximate — the frontend is a single ~3100-line HTML file. Match by function name, element ID, or surrounding code context rather than exact line numbers.
+
 ---
 
 ### Task 1: Persist client_id in sessionStorage
@@ -153,16 +155,16 @@ git commit -m "feat(fabricate): only reconnect to own jobs via client_id filteri
 
 ---
 
-### Task 3: Per-user Kill button
+### Task 3: Per-user Kill button with disabled state
 
 **Files:**
-- Modify: `infra/frontend/index.html:1946-1952`
+- Modify: `infra/frontend/index.html` — add `getRunningJobClientId()`, `updateKillButtonState()`, update Kill handler, call from `checkConnection()`
 
-Currently the Kill button calls `/api/interrupt` unconditionally, killing whoever's job is running. Change to only allow killing if the running job belongs to this client. If it's someone else's job, disable the button with a tooltip.
+Currently the Kill button calls `/api/interrupt` unconditionally, killing whoever's job is running. Change to: (a) visually disable Kill with a tooltip when another user's job is running, and (b) block on click as a safety net. Also refresh UI state after kill.
 
-- [ ] **Step 1: Add helper function to check running job ownership**
+- [ ] **Step 1: Add helper functions for kill button state**
 
-Add this function right before the `bindEvents()` function definition (around line 1920):
+Add these two functions right before the `bindEvents()` function definition (search for `function bindEvents`):
 
 ```javascript
 async function getRunningJobClientId() {
@@ -176,11 +178,45 @@ async function getRunningJobClientId() {
     return extraData.client_id || null;
   } catch { return null; }
 }
+
+async function updateKillButtonState() {
+  const btn = $('btnKill');
+  const runningClientId = await getRunningJobClientId();
+
+  if (!runningClientId) {
+    btn.disabled = true;
+    btn.title = 'No running job';
+    return;
+  }
+
+  if (runningClientId !== wsClientId) {
+    btn.disabled = true;
+    btn.title = "Another user's job is running";
+    return;
+  }
+
+  btn.disabled = false;
+  btn.title = 'Interrupt your running job';
+}
 ```
 
-- [ ] **Step 2: Update Kill button handler**
+- [ ] **Step 2: Call updateKillButtonState from checkConnection**
 
-Replace the Kill button event listener (lines ~1946-1952):
+In the `checkConnection()` function, add a call at the end of the successful branch (after the queue status text is set, before the closing `}`):
+
+```javascript
+      updateKillButtonState();
+```
+
+Also call it at the end of `reconnectToRunningJobs()`, right before `startPolling();`:
+
+```javascript
+    updateKillButtonState();
+```
+
+- [ ] **Step 3: Update Kill button handler with safety net and UI refresh**
+
+Replace the Kill button event listener (search for `btnKill.*addEventListener`):
 
 ```javascript
   $('btnKill').addEventListener('click', async () => {
@@ -198,32 +234,35 @@ With:
 ```javascript
   $('btnKill').addEventListener('click', async () => {
     try {
+      // Safety net: double-check ownership even though button should be disabled
       const runningClientId = await getRunningJobClientId();
       if (runningClientId && runningClientId !== wsClientId) {
         log('Cannot kill — another user\'s job is running', 'error');
+        updateKillButtonState();
         return;
       }
       await fetch(`${API_BASE}/api/interrupt`, { method: 'POST' });
       log('Interrupted running job', 'error');
       setGenerating(false);
       setStatus('Interrupted', 'error');
+      await checkConnection();
     } catch (e) { log('Kill failed: ' + e.message, 'error'); }
   });
 ```
 
-- [ ] **Step 3: Test kill isolation**
+- [ ] **Step 4: Test kill button states**
 
-1. Open Tab A, submit a generation.
-2. Open Tab B, click Kill.
-3. Confirm Tab B's log shows "Cannot kill — another user's job is running".
-4. Confirm Tab A's job continues running.
-5. In Tab A, click Kill. Confirm it works.
+1. No jobs running → confirm Kill button is disabled, tooltip "No running job".
+2. Tab A submits generation → Tab A: Kill enabled, tooltip "Interrupt your running job".
+3. Tab B opens → Tab B: Kill disabled, tooltip "Another user's job is running".
+4. Tab B clicks Kill (if somehow enabled) → log shows refusal, button re-disables.
+5. Tab A clicks Kill → works, queue status refreshes immediately.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add infra/frontend/index.html
-git commit -m "feat(fabricate): kill button only affects own running jobs"
+git commit -m "feat(fabricate): kill button disabled state + ownership check"
 ```
 
 ---
@@ -281,7 +320,8 @@ With:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ delete: myPendingIds })
       });
-      log(`Cleared ${myPendingIds.length} pending job(s)`, 'error');
+      log(`Cleared ${myPendingIds.length} pending job(s)`);
+      await checkConnection();  // Refresh queue display immediately
     } catch (e) { log('Clear failed: ' + e.message, 'error'); }
   });
 ```
@@ -359,7 +399,7 @@ async function checkConnection() {
       const totalRunning = running.length;
       const totalPending = pending.length;
 
-      // Find this user's position in the queue
+      // Find this user's position in the pending queue
       let myPosition = -1;
       for (let i = 0; i < pending.length; i++) {
         const extraData = pending[i][3] || {};
@@ -369,13 +409,14 @@ async function checkConnection() {
           break;
         }
       }
-      // Also check if our job is the one running
       const myJobRunning = running.some(j => (j[3] || {}).client_id === wsClientId);
 
       let statusText = '';
       if (totalRunning > 0 || totalPending > 0) {
         statusText = `Queue: ${totalRunning} running, ${totalPending} pending`;
-        if (myPosition > 0) {
+        if (myJobRunning) {
+          statusText += ' | Your job is running';
+        } else if (myPosition > 0) {
           const estMinutes = myPosition * 2;  // ~2 min per generation
           statusText += ` | Your job: #${myPosition} (~${estMinutes}m)`;
         }
@@ -499,4 +540,8 @@ Tab A: submit 2 jobs. Tab B: submit 1 job. Tab B: click Clear My Queue. Confirm 
 
 - [ ] **Step 5: Test queue position**
 
-Tab A: submit generation. Tab B: submit generation. Confirm Tab B shows position indicator. When Tab A's job finishes, confirm Tab B's job starts and indicator disappears.
+Tab A: submit generation. Tab B: submit generation. Confirm Tab B shows position indicator with "Your job: #2 (~4m)". Confirm Tab A shows "Your job is running". When Tab A's job finishes, confirm Tab B's job starts and indicator changes to "Your job is running".
+
+- [ ] **Step 6: Test refresh while pending behind another user**
+
+Tab A: submit generation. Tab B: submit generation (queued behind A). Refresh Tab B. Confirm Tab B reconnects to its own pending job (not Tab A's running job). Confirm queue position indicator still shows correctly.
