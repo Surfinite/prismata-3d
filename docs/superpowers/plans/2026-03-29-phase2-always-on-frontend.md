@@ -1,18 +1,20 @@
-# Phase 2: Always-On Frontend — Implementation Plan
+# Phase 2: Always-On Frontend — Implementation Plan (v2)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Serve the Fabrication Terminal at `fabricate.prismata.live` on the existing site box, with S3-backed model browsing available 24/7 — even when no GPU is running. Users can browse all generated models, view 3D previews, manage favorites, and see generation history without needing GPU access.
 
-**Architecture:** A small Express.js API server on the site box (port 3100) serves the SPA and handles S3 operations. Nginx reverse-proxies `fabricate.prismata.live` to it. The frontend detects whether it's running on the site box (always-on, browse-only) or on a GPU instance (full generation mode) based on whether ComfyUI's `/api/system_stats` responds. Model downloads use presigned S3 URLs (browser fetches directly from S3, not proxied through Node).
+**Architecture:** A small Express.js API server on the site box (port 3100) serves the SPA and handles S3 operations. Nginx reverse-proxies `fabricate.prismata.live` to it. The frontend detects mode by hostname: `fabricate.prismata.live` = site-box browse mode, anything else = GPU legacy mode. Model downloads use presigned S3 URLs on the site box (browser fetches directly from S3). On the GPU, the existing ComfyUI custom-node routes are preserved unchanged.
 
-**Tech Stack:** Express.js, AWS SDK v3, better-sqlite3, nginx, certbot, systemd
+**Tech Stack:** Express.js, AWS SDK v3, nginx, certbot, systemd
 
 **Spec:** `docs/superpowers/specs/2026-03-29-multi-user-fabrication-terminal-design.md` — Phase 2 section + "Site Box API Routes" + "DNS and Nginx"
 
 **Site box:** Existing `t3.micro spot`, EIP `<SITE_BOX_EIP>`, Ubuntu, Node.js v22, runs prismata.live (Next.js port 3000), nginx + certbot SSL. SSH: `ssh -i ~/.ssh/<SSH_KEY>.pem ubuntu@<SITE_BOX_EIP>`
 
-**Note:** This phase does NOT include GPU proxying, session management, or auto-wake. Those are Phase 3. The frontend gracefully degrades to browse-only mode when no GPU is available.
+**Note:** This phase does NOT include GPU proxying, session management, or auto-wake. Those are Phase 3. The frontend gracefully degrades to browse-only mode when served from the site box. When served from a GPU instance (trycloudflare URL), all existing behavior is preserved unchanged — the legacy `/fabricate/api/...` ComfyUI custom-node routes remain active.
+
+**Note:** SQLite is not used in Phase 2. It is introduced in Phase 3 for session/reconciler state.
 
 ---
 
@@ -23,47 +25,37 @@
 ```
 infra/site/
 ├── package.json              # Express + AWS SDK deps
-├── server.js                 # Main server: static files + API routes
+├── .gitignore                # node_modules/
+├── server.js                 # Main server: static files + API routes + API 404 handler
 ├── routes/
-│   ├── s3.js                 # S3 proxy routes (check, list, model-url, favorites, reject)
-│   └── status.js             # GET /api/status (read-only session/GPU state)
+│   ├── s3.js                 # S3 routes (check, list, model-url, favorites, reject)
+│   └── status.js             # GET /api/status + GET /healthz
 ├── lib/
 │   └── s3client.js           # Shared S3 client singleton
 ├── fabricate.service          # systemd unit file
-├── fabricate.nginx.conf       # nginx vhost config
-└── deploy.sh                 # Deploy script (rsync to site box + restart)
+├── fabricate.nginx.conf       # nginx vhost config (HTTP-only, certbot adds SSL)
+└── deploy.sh                 # Deploy script (SCP to site box + restart)
 ```
 
 ### Modified files
 
 ```
-infra/frontend/index.html     # Refactor API routing for dual-mode
-```
-
-### Assets to copy to site box
-
-```
-/opt/fabricate/
-├── public/
-│   ├── index.html            # SPA (from infra/frontend/index.html)
-│   ├── manifest.json         # Unit manifest (from S3)
-│   └── descriptions.json     # Unit descriptions (from S3)
-├── server.js
-├── routes/
-├── lib/
-├── package.json
-├── node_modules/
-└── fabricate.db              # SQLite (created on first run, used more in Phase 3)
+infra/frontend/index.html     # Mode-aware API routing by hostname
 ```
 
 ---
 
-### Task 1: Create the Express server skeleton
+### Task 1: Create the Express server skeleton with route stubs
 
 **Files:**
 - Create: `infra/site/package.json`
+- Create: `infra/site/.gitignore`
 - Create: `infra/site/server.js`
 - Create: `infra/site/lib/s3client.js`
+- Create: `infra/site/routes/s3.js` (stub)
+- Create: `infra/site/routes/status.js` (stub)
+
+Create the full skeleton including stub route files so the server can start immediately.
 
 - [ ] **Step 1: Create package.json**
 
@@ -85,7 +77,15 @@ infra/frontend/index.html     # Refactor API routing for dual-mode
 
 Write to `c:/libraries/prismata-3d/infra/site/package.json`.
 
-- [ ] **Step 2: Create S3 client singleton**
+- [ ] **Step 2: Create .gitignore**
+
+```
+node_modules/
+```
+
+Write to `c:/libraries/prismata-3d/infra/site/.gitignore`.
+
+- [ ] **Step 3: Create S3 client singleton**
 
 ```javascript
 // infra/site/lib/s3client.js
@@ -101,7 +101,30 @@ module.exports = { s3, BUCKET, REGION };
 
 Write to `c:/libraries/prismata-3d/infra/site/lib/s3client.js`.
 
-- [ ] **Step 3: Create main server**
+- [ ] **Step 4: Create stub route files**
+
+```javascript
+// infra/site/routes/s3.js — stub, filled in Task 2
+const express = require('express');
+const router = express.Router();
+module.exports = router;
+```
+
+```javascript
+// infra/site/routes/status.js — stub, filled in Task 2
+const express = require('express');
+const router = express.Router();
+
+router.get('/status', (req, res) => {
+  res.json({ state: 'browse', session: null, gpu: null, message: 'GPU offline — browse models below' });
+});
+
+module.exports = router;
+```
+
+Write to their respective paths.
+
+- [ ] **Step 5: Create main server with API 404 handler**
 
 ```javascript
 // infra/site/server.js
@@ -117,14 +140,25 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const app = express();
 app.use(express.json());
 
-// Static files (SPA, manifest, descriptions)
-app.use(express.static(PUBLIC_DIR));
-
-// API routes
+// API routes (before static files)
 app.use('/api/s3', s3Routes);
 app.use('/api', statusRoutes);
 
-// SPA fallback — serve index.html for any unmatched route
+// Health endpoint
+app.get('/healthz', (req, res) => {
+  res.json({ ok: true, uptime: process.uptime() });
+});
+
+// API 404 — must come BEFORE static/SPA fallback
+// Without this, unknown /api/* routes would return index.html with 200
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Static files (SPA, manifest, descriptions)
+app.use(express.static(PUBLIC_DIR));
+
+// SPA fallback — serve index.html for any unmatched non-API route
 app.get('*', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
@@ -136,41 +170,53 @@ app.listen(PORT, '127.0.0.1', () => {
 
 Write to `c:/libraries/prismata-3d/infra/site/server.js`.
 
-- [ ] **Step 4: Install dependencies locally to verify**
+- [ ] **Step 6: Install dependencies and verify server starts**
 
 ```bash
 cd c:/libraries/prismata-3d/infra/site && npm install
+mkdir -p public && echo "<h1>test</h1>" > public/index.html
+node server.js &
+sleep 1
+curl -s http://localhost:3100/api/status
+curl -s http://localhost:3100/healthz
+curl -si http://localhost:3100/api/does-not-exist | head -5
+curl -s http://localhost:3100/
+kill %1
+rm public/index.html
 ```
 
-Confirm `node_modules` is created and no errors.
+Verify:
+- `/api/status` returns JSON with `state: "browse"`
+- `/healthz` returns JSON with `ok: true`
+- `/api/does-not-exist` returns HTTP 404 with JSON `{"error":"Not found"}` (NOT index.html)
+- `/` returns the test HTML
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 cd c:/libraries/prismata-3d
-git add infra/site/package.json infra/site/server.js infra/site/lib/s3client.js
-git commit -m "feat(fabricate): express server skeleton for always-on frontend"
+git add infra/site/
+git commit -m "feat(fabricate): express server skeleton with API 404 handler and health endpoint"
 ```
-
-Do NOT commit `node_modules/`. If there's no `.gitignore` in `infra/site/`, create one with `node_modules/`.
 
 ---
 
 ### Task 2: S3 API routes
 
 **Files:**
-- Create: `infra/site/routes/s3.js`
+- Modify: `infra/site/routes/s3.js` (replace stub)
 
-Port all S3 operations from the ComfyUI custom node (`install-frontend.sh` `__init__.py`) to Express routes. Key change: model downloads now return **presigned S3 URLs** instead of proxying the file through the server.
+Port all S3 operations from the ComfyUI custom node (`install-frontend.sh` `__init__.py`) to Express routes. Key change: model downloads return **presigned S3 URLs** instead of proxying bytes. The `model-url` route uses `HeadObjectCommand` to verify the key exists before signing (avoids returning signed URLs for missing objects).
 
-- [ ] **Step 1: Create S3 routes**
+- [ ] **Step 1: Replace S3 route stub with full implementation**
 
 ```javascript
 // infra/site/routes/s3.js
 const express = require('express');
 const { s3, BUCKET } = require('../lib/s3client');
 const {
-  ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand
+  ListObjectsV2Command, GetObjectCommand, PutObjectCommand,
+  DeleteObjectCommand, HeadObjectCommand
 } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
@@ -210,6 +256,7 @@ router.get('/check/:unit/:skin', async (req, res) => {
 });
 
 // GET /api/s3/model-url/:unit/:skin — return presigned URL for model download
+// Uses HeadObject to verify key exists before signing
 router.get('/model-url/:unit/:skin', async (req, res) => {
   const { unit, skin } = req.params;
   const fmt = req.query.format || 'glb';
@@ -221,13 +268,17 @@ router.get('/model-url/:unit/:skin', async (req, res) => {
     } else {
       key = `models/${unit}/${skin}/latest.${fmt}`;
     }
+    // Verify object exists before signing
+    await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
     const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: key }), {
-      expiresIn: 3600  // 1 hour
+      expiresIn: 3600
     });
     res.json({ url, key, filename: filename || `latest.${fmt}` });
   } catch (e) {
-    const status = e.name === 'NoSuchKey' ? 404 : 500;
-    res.status(status).json({ error: e.message });
+    if (e.name === 'NotFound' || e.$metadata?.httpStatusCode === 404) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -333,69 +384,64 @@ router.post('/reject', async (req, res) => {
 module.exports = router;
 ```
 
-Write to `c:/libraries/prismata-3d/infra/site/routes/s3.js`.
+Write to `c:/libraries/prismata-3d/infra/site/routes/s3.js` (replacing the stub).
 
-- [ ] **Step 2: Create status route (stub for Phase 2)**
-
-```javascript
-// infra/site/routes/status.js
-const express = require('express');
-const router = express.Router();
-
-// GET /api/status — read-only session/GPU state
-// Phase 2: returns browse-only state (no session management yet)
-// Phase 3 will add session, GPU, and queue info
-router.get('/status', (req, res) => {
-  res.json({
-    state: 'browse',
-    session: null,
-    gpu: null,
-    message: 'GPU offline — browse models below'
-  });
-});
-
-module.exports = router;
-```
-
-Write to `c:/libraries/prismata-3d/infra/site/routes/status.js`.
-
-- [ ] **Step 3: Verify server starts locally**
+- [ ] **Step 2: Commit**
 
 ```bash
-cd c:/libraries/prismata-3d/infra/site
-mkdir -p public
-echo "<h1>test</h1>" > public/index.html
-node server.js
-```
-
-In another terminal: `curl http://localhost:3100/` should return the test HTML. `curl http://localhost:3100/api/status` should return the JSON stub. Kill the server.
-
-```bash
-rm public/index.html
-```
-
-- [ ] **Step 4: Commit**
-
-```bash
-cd c:/libraries/prismata-3d
-git add infra/site/routes/s3.js infra/site/routes/status.js
-git commit -m "feat(fabricate): S3 API routes + status stub for site box"
+git add infra/site/routes/s3.js
+git commit -m "feat(fabricate): S3 API routes with presigned URLs and HeadObject verification"
 ```
 
 ---
 
-### Task 3: Refactor frontend for dual-mode API routing
+### Task 3: S3 bucket CORS configuration
+
+**Files:** None (AWS configuration)
+
+Presigned S3 URLs served to the browser need CORS headers, otherwise `<model-viewer>`, `fetch()`, and `three.js` loaders will be blocked by the browser.
+
+- [ ] **Step 1: Apply CORS configuration to the S3 bucket**
+
+```bash
+aws s3api put-bucket-cors --bucket prismata-3d-models --region us-east-1 --cors-configuration '{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://fabricate.prismata.live"],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}'
+```
+
+- [ ] **Step 2: Verify CORS is set**
+
+```bash
+aws s3api get-bucket-cors --bucket prismata-3d-models --region us-east-1
+```
+
+Should show the CORS rule with `fabricate.prismata.live` in AllowedOrigins.
+
+- [ ] **Step 3: Commit a note (no code change, but document it)**
+
+No file to commit — this is an infrastructure configuration. The CORS config is documented in the spec and this plan.
+
+---
+
+### Task 4: Refactor frontend for mode-aware API routing
 
 **Files:**
 - Modify: `infra/frontend/index.html`
 
-The frontend needs to work in two modes:
-1. **GPU mode** (served by ComfyUI at trycloudflare URL): all APIs go to same origin (current behavior)
-2. **Site box mode** (served by fabricate.prismata.live): S3 APIs go to same origin, GPU APIs are unavailable
+The frontend detects mode by hostname — no probing needed:
+- **Site-box mode** (`fabricate.prismata.live`): S3 calls use new Express routes (`/api/s3/...`), GPU calls disabled, browse-only.
+- **GPU legacy mode** (any other hostname): ALL calls use existing paths (`/fabricate/api/...` for S3, `/api/...` for ComfyUI). Zero changes to GPU behavior.
 
-The key change: replace hardcoded `API_BASE` with two bases, and detect which mode we're in based on whether `/api/system_stats` (ComfyUI-specific) responds.
+This is the critical backward-compatibility fix: on the GPU URL, we keep the old route patterns. Only on the site box do we use the new Express routes.
 
-- [ ] **Step 1: Replace API_BASE with dual-base routing**
+- [ ] **Step 1: Replace API_BASE with mode-aware routing**
 
 Find (around line 1580):
 ```javascript
@@ -404,201 +450,178 @@ const API_BASE = window.location.origin;
 
 Replace with:
 ```javascript
-// Dual-mode API routing:
-// - SITE_BASE: always-on S3/status routes (works even when GPU is off)
-// - GPU_BASE: ComfyUI routes (only available when GPU is running)
-// When served from the GPU (trycloudflare), both point to the same origin.
-// When served from the site box (fabricate.prismata.live), GPU_BASE starts null.
-const SITE_BASE = window.location.origin;
-let GPU_BASE = null;  // Set when GPU is detected as available
-let gpuAvailable = false;
-```
+// Mode-aware API routing by hostname.
+// Site-box mode: S3 via Express /api/s3/..., no GPU available.
+// GPU legacy mode: everything via ComfyUI /fabricate/api/... and /api/...
+const ORIGIN = window.location.origin;
+const IS_SITE_BOX = window.location.hostname === 'fabricate.prismata.live';
+let gpuAvailable = !IS_SITE_BOX;  // GPU mode starts available, site box starts offline
 
-- [ ] **Step 2: Update checkConnection for GPU detection**
-
-In the `checkConnection()` function, update the `/api/system_stats` check to set `gpuAvailable` and handle the browse-only case. The function currently tries to fetch `/api/system_stats` — on the site box this will fail (no ComfyUI). On the GPU instance it works.
-
-Replace the `checkConnection` function with:
-
-```javascript
-async function checkConnection() {
-  // Try ComfyUI system_stats — if this works, we have a GPU
-  const statsUrl = GPU_BASE
-    ? `${GPU_BASE}/api/system_stats`
-    : `${SITE_BASE}/api/system_stats`;
-  try {
-    const resp = await fetch(statsUrl, { signal: AbortSignal.timeout(5000) });
-    if (resp.ok) {
-      gpuAvailable = true;
-      if (!GPU_BASE) GPU_BASE = SITE_BASE;  // Same origin has ComfyUI
-      connDot.classList.add('connected');
-      connText.textContent = 'ComfyUI Online';
-
-      const queueUrl = `${GPU_BASE}/api/queue`;
-      const qResp = await fetch(queueUrl);
-      if (!qResp.ok) return;
-      const q = await qResp.json();
-      const running = q.queue_running || [];
-      const pending = q.queue_pending || [];
-      const totalRunning = running.length;
-      const totalPending = pending.length;
-
-      let myPosition = -1;
-      for (let i = 0; i < pending.length; i++) {
-        const extraData = pending[i][3] || {};
-        if (extraData.client_id === wsClientId) {
-          myPosition = totalRunning + i + 1;
-          break;
-        }
-      }
-      const myJobRunning = running.some(j => (j[3] || {}).client_id === wsClientId);
-
-      let statusText = '';
-      if (totalRunning > 0 || totalPending > 0) {
-        statusText = `Queue: ${totalRunning} running, ${totalPending} pending`;
-        if (myJobRunning) {
-          statusText += ' | Your job is running';
-        } else if (myPosition > 0) {
-          const estMinutes = myPosition * 2;
-          statusText += ` | Your job: #${myPosition} (~${estMinutes}m)`;
-        }
-      }
-      queueStatus.textContent = statusText;
-
-      const killBtn = $('btnKill');
-      if (myJobRunning) {
-        killBtn.disabled = false;
-        killBtn.title = 'Interrupt your running job';
-      } else if (totalRunning > 0) {
-        killBtn.disabled = true;
-        killBtn.title = "Another user's job is running";
-      } else {
-        killBtn.disabled = true;
-        killBtn.title = 'No running job';
-      }
-      return;
-    }
-  } catch {}
-
-  // ComfyUI not available — check if site box status API is available
-  gpuAvailable = false;
-  GPU_BASE = null;
-  try {
-    const statusResp = await fetch(`${SITE_BASE}/api/status`, { signal: AbortSignal.timeout(5000) });
-    if (statusResp.ok) {
-      const status = await statusResp.json();
-      connDot.classList.remove('connected');
-      connText.textContent = status.message || 'GPU Offline — Browse Mode';
-      queueStatus.textContent = '';
-      return;
-    }
-  } catch {}
-
-  // Nothing available
-  if (!currentPromptId) {
-    connDot.classList.remove('connected');
-    connText.textContent = 'Offline';
-    queueStatus.textContent = '';
+// Route helpers — each call site uses these instead of building URLs directly
+function s3CheckUrl(unit, skin) {
+  return IS_SITE_BOX
+    ? `${ORIGIN}/api/s3/check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`
+    : `${ORIGIN}/fabricate/api/s3-check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`;
+}
+function s3ListUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/list` : `${ORIGIN}/fabricate/api/s3-list`;
+}
+function s3FavoritesUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/favorites` : `${ORIGIN}/fabricate/api/favorites`;
+}
+function s3FavoriteUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/favorite` : `${ORIGIN}/fabricate/api/favorite`;
+}
+function s3UnfavoriteUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/unfavorite` : `${ORIGIN}/fabricate/api/unfavorite`;
+}
+function s3RejectUrl() {
+  return IS_SITE_BOX ? `${ORIGIN}/api/s3/reject` : `${ORIGIN}/fabricate/api/reject`;
+}
+async function s3ModelUrl(unit, skin, fmt, filename) {
+  if (IS_SITE_BOX) {
+    // Presigned URL from Express
+    const params = new URLSearchParams({ format: fmt || 'glb' });
+    if (filename) params.set('filename', filename);
+    const resp = await fetch(`${ORIGIN}/api/s3/model-url/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?${params}`);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.url;
   }
+  // GPU legacy: direct proxy through ComfyUI custom node
+  const params = new URLSearchParams({ format: fmt || 'glb' });
+  if (filename) params.set('filename', filename);
+  return `${ORIGIN}/fabricate/api/s3-model/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?${params}`;
+}
+function gpuUrl(path) {
+  // All ComfyUI API calls — only available in GPU mode
+  return `${ORIGIN}${path}`;
+}
+function metadataUrl() {
+  return `${ORIGIN}/fabricate/metadata`;
 }
 ```
 
-- [ ] **Step 3: Update all S3/fabricate API calls to use SITE_BASE**
+- [ ] **Step 2: Replace all S3 API call sites**
 
-Replace every occurrence of `${API_BASE}/fabricate/api/s3-check/` with `${SITE_BASE}/api/s3/check/`.
-Replace every occurrence of `${API_BASE}/fabricate/api/s3-model/` with model-url presigned approach (see below).
-Replace every occurrence of `${API_BASE}/fabricate/api/s3-list` with `${SITE_BASE}/api/s3/list`.
-Replace every occurrence of `${API_BASE}/fabricate/api/favorites` with `${SITE_BASE}/api/s3/favorites`.
-Replace every occurrence of `${API_BASE}/fabricate/api/favorite` with `${SITE_BASE}/api/s3/favorite`.
-Replace every occurrence of `${API_BASE}/fabricate/api/unfavorite` with `${SITE_BASE}/api/s3/unfavorite`.
-Replace every occurrence of `${API_BASE}/fabricate/api/reject` with `${SITE_BASE}/api/s3/reject`.
-Replace every occurrence of `${API_BASE}/fabricate/metadata` with `${GPU_BASE}/fabricate/metadata` (this one stays on GPU since it writes to local disk).
+Search for every occurrence of `${API_BASE}/fabricate/api/s3-check/` and replace with `s3CheckUrl(unit, skin)`.
+Search for every occurrence of `${API_BASE}/fabricate/api/s3-model/` and replace with `await s3ModelUrl(unit, skin, fmt, filename)`. Note: this is now async — the calling function must await.
+Search for every occurrence of `${API_BASE}/fabricate/api/s3-list` and replace with `s3ListUrl()`.
+Search for every occurrence of `${API_BASE}/fabricate/api/favorites` and replace with `s3FavoritesUrl()`.
+Search for every occurrence of `${API_BASE}/fabricate/api/favorite` (POST) and replace with `s3FavoriteUrl()`.
+Search for every occurrence of `${API_BASE}/fabricate/api/unfavorite` and replace with `s3UnfavoriteUrl()`.
+Search for every occurrence of `${API_BASE}/fabricate/api/reject` and replace with `s3RejectUrl()`.
+Search for every occurrence of `${API_BASE}/fabricate/metadata` and replace with `metadataUrl()`.
 
-For the model download, the old pattern:
+- [ ] **Step 3: Replace all ComfyUI API call sites**
+
+Replace `${API_BASE}/api/prompt` with `gpuUrl('/api/prompt')`.
+Replace `${API_BASE}/api/queue` with `gpuUrl('/api/queue')`.
+Replace `${API_BASE}/api/interrupt` with `gpuUrl('/api/interrupt')`.
+Replace `${API_BASE}/api/history/` with `gpuUrl('/api/history/')`.
+Replace `${API_BASE}/api/view?` with `gpuUrl('/api/view?')`.
+Replace `${API_BASE}/api/system_stats` with `gpuUrl('/api/system_stats')`.
+
+- [ ] **Step 4: Update WebSocket connection for mode awareness**
+
+In `connectWebSocket()`, add a guard at the top:
+
 ```javascript
-const s3Url = `${API_BASE}/fabricate/api/s3-model/${unit}/${skin}?format=${fmt}`;
+function connectWebSocket() {
+  if (IS_SITE_BOX) return;  // No WebSocket in browse mode
+  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProto}//${location.host}/ws?clientId=${wsClientId}`;
+  // ... rest unchanged
 ```
 
-Must become a presigned URL fetch:
+- [ ] **Step 5: Update checkConnection for site-box mode**
+
+In `checkConnection()`, add a fast path for site-box mode that skips the ComfyUI probe entirely:
+
+At the very start of the function, add:
+
 ```javascript
-const urlResp = await fetch(`${SITE_BASE}/api/s3/model-url/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?format=${fmt}`);
-const urlData = await urlResp.json();
-const s3Url = urlData.url;
+async function checkConnection() {
+  if (IS_SITE_BOX) {
+    // Site-box mode: no ComfyUI, just check our status API
+    try {
+      const resp = await fetch(`${ORIGIN}/api/status`, { signal: AbortSignal.timeout(5000) });
+      if (resp.ok) {
+        const status = await resp.json();
+        connDot.classList.remove('connected');
+        connText.textContent = status.message || 'GPU Offline — Browse Mode';
+        queueStatus.textContent = '';
+      }
+    } catch {
+      connDot.classList.remove('connected');
+      connText.textContent = 'Offline';
+      queueStatus.textContent = '';
+    }
+    return;
+  }
+  // GPU legacy mode: existing checkConnection behavior...
 ```
 
-This applies everywhere `s3-model` is referenced (model preview loading, download button, favorites gallery). Search for all occurrences.
+The rest of the existing `checkConnection` function (ComfyUI probe, queue status, kill button state) remains unchanged — it only runs in GPU mode.
 
-- [ ] **Step 4: Update all ComfyUI API calls to use GPU_BASE**
+- [ ] **Step 6: Disable GPU controls in site-box browse mode**
 
-Replace `${API_BASE}/api/prompt` with `${GPU_BASE}/api/prompt`.
-Replace `${API_BASE}/api/queue` with `${GPU_BASE}/api/queue`.
-Replace `${API_BASE}/api/interrupt` with `${GPU_BASE}/api/interrupt`.
-Replace `${API_BASE}/api/history/` with `${GPU_BASE}/api/history/`.
-Replace `${API_BASE}/api/view?` with `${GPU_BASE}/api/view?`.
-Replace `${API_BASE}/api/system_stats` with the `statsUrl` variable (already handled in checkConnection).
-
-For the WebSocket connection, replace:
-```javascript
-const wsUrl = `${wsProto}//${location.host}/ws?clientId=${wsClientId}`;
-```
-With:
-```javascript
-if (!GPU_BASE) return;  // No GPU, no WebSocket
-const gpuHost = new URL(GPU_BASE).host;
-const wsUrl = `${wsProto}//${gpuHost}/ws?clientId=${wsClientId}`;
-```
-
-- [ ] **Step 5: Guard GPU-dependent UI actions**
-
-The Generate button, Kill, and Clear Queue should be disabled when `gpuAvailable` is false. Add a check at the top of `startGeneration()`:
+Add guards to GPU-dependent actions. At the top of `startGeneration()`:
 
 ```javascript
-  if (!gpuAvailable || !GPU_BASE) {
-    log('GPU is not available — cannot generate', 'error');
+  if (IS_SITE_BOX) {
+    log('GPU is not available — browse mode only', 'error');
     return;
   }
 ```
 
-Add a similar guard at the top of the Kill and Clear Queue handlers.
+Add the same guard at the top of the Kill handler and Clear My Queue handler.
 
-Also guard the metadata save (which writes to GPU local disk):
+Also add to `init()`, after `bindEvents()`:
+
 ```javascript
-  if (!GPU_BASE) return;  // Can't save metadata without GPU
+  if (IS_SITE_BOX) {
+    // Disable generation controls in browse mode
+    $('btnGenerate').disabled = true;
+    $('btnGenerate').title = 'GPU not available — browse mode';
+    $('btnKill').disabled = true;
+    $('btnClearQueue').disabled = true;
+  }
 ```
 
-- [ ] **Step 6: Update manifest loading for site box mode**
-
-The manifest loading currently tries ComfyUI-specific paths. Add the site box path as the first option:
+- [ ] **Step 7: Update manifest loading**
 
 ```javascript
   const paths = [
-    'manifest.json',                    // site box serves this as static file
-    `${SITE_BASE}/manifest.json`,       // explicit site box path
-    `${GPU_BASE || SITE_BASE}/api/view?filename=prismata-assets/manifest.json&type=input`,
-    `${GPU_BASE || SITE_BASE}/prismata-assets/manifest.json`,
+    'manifest.json',                    // works on both site box and GPU
+    `${ORIGIN}/manifest.json`,
   ];
+  if (!IS_SITE_BOX) {
+    paths.push(`${ORIGIN}/api/view?filename=prismata-assets/manifest.json&type=input`);
+    paths.push(`${ORIGIN}/prismata-assets/manifest.json`);
+  }
 ```
 
-- [ ] **Step 7: Remove all remaining references to API_BASE**
+- [ ] **Step 8: Remove all remaining references to API_BASE**
 
-Search the file for `API_BASE`. There should be zero remaining. Every call should use either `SITE_BASE` or `GPU_BASE`.
+Search the file for `API_BASE`. There should be zero remaining. Every call should use a route helper or `ORIGIN` directly.
 
-If any `API_BASE` references remain, determine whether they're S3/always-on (use `SITE_BASE`) or ComfyUI/GPU (use `GPU_BASE` with a guard).
-
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add infra/frontend/index.html
-git commit -m "feat(fabricate): dual-mode API routing — SITE_BASE for S3, GPU_BASE for ComfyUI"
+git commit -m "feat(fabricate): mode-aware routing — site box browse mode + GPU legacy compatibility"
 ```
 
 ---
 
-### Task 4: Systemd service and nginx config
+### Task 5: Systemd service and nginx config
 
 **Files:**
 - Create: `infra/site/fabricate.service`
 - Create: `infra/site/fabricate.nginx.conf`
+
+The nginx config is **HTTP-only**. Certbot will add the SSL server block in Task 8.
 
 - [ ] **Step 1: Create systemd service file**
 
@@ -625,28 +648,16 @@ WantedBy=multi-user.target
 
 Write to `c:/libraries/prismata-3d/infra/site/fabricate.service`.
 
-- [ ] **Step 2: Create nginx vhost config**
+- [ ] **Step 2: Create nginx vhost config (HTTP-only)**
 
 ```nginx
+# HTTP-only config for fabricate.prismata.live
+# After running certbot, it will add the SSL server block automatically.
 server {
     listen 80;
     server_name fabricate.prismata.live;
 
-    # Redirect HTTP to HTTPS (certbot will add SSL block)
-    location / {
-        return 301 https://$host$request_uri;
-    }
-}
-
-server {
-    listen 443 ssl;
-    server_name fabricate.prismata.live;
-
-    # SSL certs will be added by certbot
-    # ssl_certificate /etc/letsencrypt/live/fabricate.prismata.live/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/fabricate.prismata.live/privkey.pem;
-
-    # Long timeouts for WebSocket and generation proxying (Phase 3)
+    # Long timeouts for future WebSocket/generation proxying (Phase 3)
     proxy_read_timeout 300s;
     proxy_send_timeout 300s;
 
@@ -669,12 +680,12 @@ Write to `c:/libraries/prismata-3d/infra/site/fabricate.nginx.conf`.
 
 ```bash
 git add infra/site/fabricate.service infra/site/fabricate.nginx.conf
-git commit -m "feat(fabricate): systemd service + nginx vhost config"
+git commit -m "feat(fabricate): systemd service + HTTP-only nginx vhost (certbot adds SSL)"
 ```
 
 ---
 
-### Task 5: Deploy script
+### Task 6: Deploy script
 
 **Files:**
 - Create: `infra/site/deploy.sh`
@@ -713,12 +724,17 @@ $SCP "$SCRIPT_DIR/lib/s3client.js" "$SITE_BOX:/tmp/fabricate-s3client.js"
 echo "--- Uploading frontend ---"
 $SCP "$FRONTEND_DIR/index.html" "$SITE_BOX:/tmp/fabricate-index.html"
 
-# 4. Upload static assets from S3
+# 4. Upload infrastructure files
+echo "--- Uploading service + nginx config ---"
+$SCP "$SCRIPT_DIR/fabricate.service" "$SITE_BOX:/tmp/fabricate.service"
+$SCP "$SCRIPT_DIR/fabricate.nginx.conf" "$SITE_BOX:/tmp/fabricate.nginx.conf"
+
+# 5. Download static assets from S3 on the site box
 echo "--- Downloading assets from S3 ---"
 $SSH "aws s3 cp s3://prismata-3d-models/asset-prep/manifest.json /tmp/fabricate-manifest.json --region us-east-1"
 $SSH "aws s3 cp s3://prismata-3d-models/asset-prep/descriptions.json /tmp/fabricate-descriptions.json --region us-east-1"
 
-# 5. Move files into place
+# 6. Move files into place
 echo "--- Installing files ---"
 $SSH "sudo cp /tmp/fabricate-package.json /opt/fabricate/package.json && \
       sudo cp /tmp/fabricate-server.js /opt/fabricate/server.js && \
@@ -730,36 +746,26 @@ $SSH "sudo cp /tmp/fabricate-package.json /opt/fabricate/package.json && \
       sudo cp /tmp/fabricate-descriptions.json /opt/fabricate/public/descriptions.json && \
       sudo chown -R ubuntu:ubuntu /opt/fabricate"
 
-# 6. Install npm dependencies
+# 7. Install npm dependencies
 echo "--- Installing dependencies ---"
 $SSH "cd /opt/fabricate && npm install --production"
 
-# 7. Install systemd service (first time only — safe to re-run)
+# 8. Install systemd service
 echo "--- Installing service ---"
-$SCP "$SCRIPT_DIR/fabricate.service" "$SITE_BOX:/tmp/fabricate.service"
 $SSH "sudo cp /tmp/fabricate.service /etc/systemd/system/fabricate.service && \
       sudo systemctl daemon-reload && \
       sudo systemctl enable fabricate && \
       sudo systemctl restart fabricate"
 
-# 8. Check service is running
+# 9. Check service is running
 echo "--- Verifying service ---"
 sleep 2
-$SSH "sudo systemctl is-active fabricate && curl -sf http://127.0.0.1:3100/api/status"
+$SSH "sudo systemctl is-active fabricate && curl -sf http://127.0.0.1:3100/healthz"
 
 echo ""
 echo "=== Fabricate server deployed ==="
 echo "Service: sudo systemctl status fabricate"
 echo "Logs: sudo journalctl -u fabricate -f"
-echo ""
-echo "Next steps:"
-echo "  1. Add DNS: A record for fabricate.prismata.live → <SITE_BOX_EIP>"
-echo "  2. Install nginx config:"
-echo "     sudo cp /tmp/fabricate-nginx.conf /etc/nginx/sites-available/fabricate"
-echo "     sudo ln -sf /etc/nginx/sites-available/fabricate /etc/nginx/sites-enabled/"
-echo "     sudo nginx -t && sudo systemctl reload nginx"
-echo "  3. Get SSL cert:"
-echo "     sudo certbot --nginx -d fabricate.prismata.live"
 ```
 
 Write to `c:/libraries/prismata-3d/infra/site/deploy.sh`.
@@ -774,7 +780,7 @@ git commit -m "feat(fabricate): deploy script for site box"
 
 ---
 
-### Task 6: DNS setup
+### Task 7: DNS setup
 
 **Files:** None (external configuration)
 
@@ -795,15 +801,13 @@ TTL: 600
 dig fabricate.prismata.live +short
 ```
 
-Should return `<SITE_BOX_EIP>`. May take a few minutes to propagate.
+Should return `<SITE_BOX_EIP>`. May take a few minutes.
 
 ---
 
-### Task 7: Deploy to site box and configure nginx + SSL
+### Task 8: Deploy to site box, configure nginx + SSL
 
 **Files:** None (server-side operations)
-
-This task runs the deploy script and does the one-time nginx/SSL setup.
 
 - [ ] **Step 1: Run deploy script**
 
@@ -812,47 +816,59 @@ cd c:/libraries/prismata-3d
 bash infra/site/deploy.sh
 ```
 
-Confirm output shows "Fabricate server deployed" and the status check passes.
+Confirm output shows "Fabricate server deployed" and the healthz check passes.
 
-- [ ] **Step 2: Upload and install nginx config**
+- [ ] **Step 2: Install nginx config (HTTP-only)**
 
 ```bash
 SSH_KEY="$HOME/.ssh/<SSH_KEY>.pem"
-scp -i $SSH_KEY infra/site/fabricate.nginx.conf ubuntu@<SITE_BOX_EIP>:/tmp/fabricate.nginx.conf
 ssh -i $SSH_KEY ubuntu@<SITE_BOX_EIP> "sudo cp /tmp/fabricate.nginx.conf /etc/nginx/sites-available/fabricate && \
   sudo ln -sf /etc/nginx/sites-available/fabricate /etc/nginx/sites-enabled/ && \
   sudo nginx -t && sudo systemctl reload nginx"
 ```
 
-Confirm `nginx -t` passes.
+Confirm `nginx -t` passes. At this point `http://fabricate.prismata.live` should work (if DNS has propagated).
 
-- [ ] **Step 3: Get SSL certificate**
+- [ ] **Step 3: Get SSL certificate via certbot**
 
 ```bash
 ssh -i $SSH_KEY ubuntu@<SITE_BOX_EIP> "sudo certbot --nginx -d fabricate.prismata.live"
 ```
 
-Follow prompts. Certbot will update the nginx config to add SSL.
+Certbot will create the 443 SSL server block automatically. Follow prompts.
 
-- [ ] **Step 4: Verify HTTPS works**
+- [ ] **Step 4: Verify HTTPS**
 
 ```bash
+curl -sf https://fabricate.prismata.live/healthz
 curl -sf https://fabricate.prismata.live/api/status
 ```
 
-Should return: `{"state":"browse","session":null,"gpu":null,"message":"GPU offline — browse models below"}`
+Should return `{"ok":true,...}` and `{"state":"browse",...}`.
 
-- [ ] **Step 5: Verify frontend loads**
+- [ ] **Step 5: Verify API 404 returns JSON**
 
-Open `https://fabricate.prismata.live` in a browser. Should see the Fabrication Terminal UI in browse mode — able to browse units, view previously generated 3D models, manage favorites. The connection status should show "GPU Offline — Browse Mode".
+```bash
+curl -si https://fabricate.prismata.live/api/does-not-exist | head -5
+```
+
+Should return HTTP 404 with `{"error":"Not found"}`, NOT index.html.
+
+- [ ] **Step 6: Verify frontend loads**
+
+Open `https://fabricate.prismata.live` in a browser. Confirm:
+- Page loads with unit selector
+- Connection status shows "GPU Offline — Browse Mode"
+- Generate button is disabled
+- Can browse units/skins
 
 ---
 
-### Task 8: Upload updated frontend to S3 (for GPU instances)
+### Task 9: Upload updated frontend to S3 (for GPU instances)
 
 **Files:** None (S3 upload)
 
-The updated frontend (with dual-mode routing) also needs to work when served by ComfyUI on GPU instances. Upload it to S3 so new GPU instances get it.
+The updated frontend (with mode-aware routing) must also work on GPU instances.
 
 - [ ] **Step 1: Upload to S3**
 
@@ -860,15 +876,9 @@ The updated frontend (with dual-mode routing) also needs to work when served by 
 aws s3 cp infra/frontend/index.html s3://prismata-3d-models/frontend/index.html --region us-east-1
 ```
 
-- [ ] **Step 2: Verify**
-
-The frontend should work on both:
-- `https://fabricate.prismata.live` (site box, browse-only)
-- GPU trycloudflare URL `/fabricate/` (full generation, same origin for both API bases)
-
 ---
 
-### Task 9: End-to-end verification
+### Task 10: End-to-end verification
 
 No files changed — manual test pass.
 
@@ -878,21 +888,31 @@ Visit `https://fabricate.prismata.live`. Confirm:
 - Page loads, shows unit selector
 - Connection status shows "GPU Offline — Browse Mode"
 - Can browse units and skins
-- Previously generated models load as 3D previews (via presigned S3 URLs)
+- Previously generated 3D models load and rotate in preview (via presigned S3 URLs — this validates CORS)
 - Favorites work (star, unstar, favorites dropdown)
 - Reject works
-- Generate button is disabled or shows appropriate message
+- Generate button is disabled with tooltip
+- Kill and Clear My Queue are disabled
+- No WebSocket connection attempts in DevTools Network tab
+- No JS console errors
 
-- [ ] **Step 2: Test GPU mode still works**
+- [ ] **Step 2: Test GPU legacy mode still works**
 
 Start a GPU instance via `!start`. Visit the trycloudflare URL `/fabricate/`. Confirm:
-- Full generation UI works
-- `GPU_BASE` auto-detects (same origin has ComfyUI)
-- All existing generation features work unchanged
+- Full generation UI works, Generate enabled
+- `IS_SITE_BOX` is `false` — all routes use legacy ComfyUI paths
+- S3 browsing works (still using `/fabricate/api/s3-*` on GPU)
 - Queue isolation from Phase 1 still works
+- WebSocket connects normally
 
-- [ ] **Step 3: Test S3 browsing on GPU URL**
+- [ ] **Step 3: Test API 404 on site box**
 
-While on the GPU's trycloudflare URL, browse units that have S3 models. Confirm the S3 routes still work (now using the `/fabricate/api/s3-*` paths on the GPU, which still exist in the ComfyUI custom node).
+```bash
+curl -si https://fabricate.prismata.live/api/system_stats
+```
 
-Note: In Phase 3, the GPU URL will be retired in favor of `fabricate.prismata.live` for everything. But for Phase 2, both paths must work.
+Should return 404 JSON (not index.html). This confirms the GPU detection probe won't false-positive on the site box.
+
+- [ ] **Step 4: Test presigned URL CORS**
+
+In DevTools on `fabricate.prismata.live`, go to Network tab. Browse to a unit with a generated model. Confirm the `<model-viewer>` loads the GLB from an S3 presigned URL without CORS errors.
