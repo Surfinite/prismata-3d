@@ -27,28 +27,27 @@ function recordPromptRateLimit(clientId) {
   }
 }
 
-// Helper: get GPU IP for this client, or the first ready GPU.
-// Returns { ip, instanceId } or null.
+// Helper: get GPU IP for this client's existing assignment, or any ready GPU.
+// Does NOT assign — assignment happens only in POST /prompt.
+// Returns { ip, instanceId, slot } or null.
 function getGpuForClient(clientId) {
   // Try client assignment first
   if (clientId) {
     const assignment = db.getClientAssignment(clientId);
     if (assignment && assignment.private_ip) {
       db.touchClient(clientId);
-      return { ip: assignment.private_ip, instanceId: assignment.gpu_instance_id };
+      // Look up slot for the assigned GPU
+      const gpu = db.getDb().prepare('SELECT slot FROM gpu_instances WHERE instance_id = ?').get(assignment.gpu_instance_id);
+      return { ip: assignment.private_ip, instanceId: assignment.gpu_instance_id, slot: gpu?.slot || null };
     }
   }
 
-  // Fall back to first ready GPU
+  // Fall back to first ready GPU (for queue polling, system_stats, etc.)
   const gpu = db.getReadyGpu();
   if (!gpu || !gpu.private_ip) return null;
 
-  // Auto-assign if client_id provided
-  if (clientId) {
-    db.assignClient(clientId, gpu.instance_id);
-  }
-
-  return { ip: gpu.private_ip, instanceId: gpu.instance_id };
+  // Do NOT auto-assign — lazy assignment on prompt submission only
+  return { ip: gpu.private_ip, instanceId: gpu.instance_id, slot: gpu.slot };
 }
 
 // Helper: check session and GPU, return error response or null
@@ -95,8 +94,29 @@ router.post('/prompt', async (req, res) => {
     });
   }
 
-  const gpuInfo = getGpuForClient(clientId);
-  if (!gpuInfo) {
+  // Phase 4: lazy assignment — resolve target GPU
+  let targetGpu = null;
+  let isNewAssignment = false;
+
+  // Check existing assignment
+  const assignment = db.getClientAssignment(clientId);
+  if (assignment && assignment.private_ip) {
+    const gpu = db.getDb().prepare('SELECT * FROM gpu_instances WHERE instance_id = ? AND status = ?').get(assignment.gpu_instance_id, 'ready');
+    if (gpu) {
+      targetGpu = { ip: gpu.private_ip, instanceId: gpu.instance_id, slot: gpu.slot };
+    }
+  }
+
+  // No valid assignment — pick least loaded GPU
+  if (!targetGpu) {
+    const leastLoaded = db.getLeastLoadedGpu();
+    if (leastLoaded) {
+      targetGpu = { ip: leastLoaded.private_ip, instanceId: leastLoaded.instance_id, slot: leastLoaded.slot };
+      isNewAssignment = true;
+    }
+  }
+
+  if (!targetGpu) {
     return res.status(503).json({ status: 'gpu_offline', session_active: true });
   }
 
@@ -104,21 +124,31 @@ router.post('/prompt', async (req, res) => {
 
   // Forward to ComfyUI
   try {
-    const gpuResp = await fetch(`http://${gpuInfo.ip}:8188/api/prompt`, {
+    const gpuResp = await fetch(`http://${targetGpu.ip}:8188/api/prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body),
     });
 
-    // Proxy JSON parsing with content-type fallback (Fix O)
     const contentType = gpuResp.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       const data = await gpuResp.json();
-      // Record prompt in DB with the actual GPU instance that was used
+
+      // Only persist assignment and prompt AFTER ComfyUI accepts
       if (data.prompt_id) {
-        db.recordPrompt(data.prompt_id, clientId, gpuInfo.instanceId);
+        if (isNewAssignment) {
+          db.assignClient(clientId, targetGpu.instanceId);
+        }
+        db.touchClient(clientId);
+        db.recordPrompt(data.prompt_id, clientId, targetGpu.instanceId);
       }
-      res.status(gpuResp.status).json(data);
+
+      // Return with assignment metadata for frontend WS reconnect
+      res.status(gpuResp.status).json({
+        ...data,
+        assigned_gpu_slot: targetGpu.slot,
+        reconnect: isNewAssignment,
+      });
     } else {
       const text = await gpuResp.text();
       res.status(gpuResp.status).type(contentType || 'text/plain').send(text);
@@ -340,23 +370,56 @@ router.post('/queue', async (req, res) => {
   }
 });
 
-// GET /api/gpu/view — proxy file downloads from GPU output dir (Fix M: enforce active session)
+// GET /api/gpu/view — prompt-aware routing for multi-GPU (Phase 4)
 router.get('/view', async (req, res) => {
   const denied = checkAccess(res);
   if (denied) return;
 
-  const gpu = db.getReadyGpu();
-  if (!gpu || !gpu.private_ip) {
+  let gpuIp = null;
+
+  // Priority 1: resolve by promptId if provided
+  const promptId = req.query.promptId;
+  if (promptId) {
+    const promptInfo = db.getPromptGpu(promptId);
+    if (promptInfo && promptInfo.private_ip) {
+      gpuIp = promptInfo.private_ip;
+    }
+  }
+
+  // Priority 2: client's assigned GPU
+  if (!gpuIp) {
+    const clientId = req.query.clientId;
+    if (clientId) {
+      const assignment = db.getClientAssignment(clientId);
+      if (assignment && assignment.private_ip) {
+        gpuIp = assignment.private_ip;
+      }
+    }
+  }
+
+  // Priority 3: any ready GPU (for sprite previews, manifest, etc.)
+  if (!gpuIp) {
+    const gpu = db.getReadyGpu();
+    if (gpu && gpu.private_ip) {
+      gpuIp = gpu.private_ip;
+    }
+  }
+
+  if (!gpuIp) {
     return res.status(503).json({ status: 'gpu_offline', session_active: true });
   }
 
-  const qs = new URLSearchParams(req.query).toString();
+  // Strip our routing params before forwarding to ComfyUI
+  const forwardParams = new URLSearchParams(req.query);
+  forwardParams.delete('promptId');
+  forwardParams.delete('clientId');
+  const qs = forwardParams.toString();
+
   try {
-    const gpuResp = await fetch(`http://${gpu.private_ip}:8188/api/view?${qs}`);
+    const gpuResp = await fetch(`http://${gpuIp}:8188/api/view?${qs}`);
     if (!gpuResp.ok) {
       return res.status(gpuResp.status).end();
     }
-    // Pipe response headers and body (Fix O: content-type aware proxying)
     const contentType = gpuResp.headers.get('content-type') || 'application/octet-stream';
     res.set('Content-Type', contentType);
     const arrayBuffer = await gpuResp.arrayBuffer();
