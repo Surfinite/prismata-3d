@@ -1530,7 +1530,7 @@ label[title], .toggle-label[title], span[title] {
         <div class="preview-actions">
           <button class="btn-action btn-thumbsdown" id="btnThumbsDown" title="Mark as bad generation" disabled>&#128078;</button>
           <button class="btn-action btn-danger" id="btnKill" title="Interrupt the currently running generation">Kill</button>
-          <button class="btn-action btn-danger" id="btnClearQueue" title="Remove all pending jobs from the queue">Clear Queue</button>
+          <button class="btn-action btn-danger" id="btnClearQueue" title="Remove your pending jobs from the queue">Clear My Queue</button>
           <a class="btn-action" id="btnDownload" disabled href="#" download>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Download GLB
@@ -1637,7 +1637,8 @@ const cvKernelInput = $('cvKernelInput');
 const cvMethodSelect = $('cvMethodSelect');
 
 // ── WebSocket for real-time progress ──
-const wsClientId = crypto.randomUUID();
+const wsClientId = sessionStorage.getItem('fabricate_client_id') || crypto.randomUUID();
+sessionStorage.setItem('fabricate_client_id', wsClientId);
 
 function connectWebSocket() {
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1711,11 +1712,18 @@ async function reconnectToRunningJobs() {
     if (running.length === 0 && pending.length === 0) return;
 
     // Each queue entry: [index, prompt_id, prompt_workflow, extra_data, output_node_ids]
-    const job = running[0] || pending[0];
-    if (!job || !job[1]) return;
+    // extra_data.client_id contains the submitter's client_id
+    const allJobs = [...running, ...pending];
+    const myJob = allJobs.find(job => {
+      const extraData = job[3] || {};
+      return extraData.client_id === wsClientId;
+    });
 
-    const promptId = job[1];
-    const prompt = job[2] || {};
+    if (!myJob) return;  // No jobs belonging to this tab
+
+    const promptId = myJob[1];
+    const prompt = myJob[2] || {};
+    const isRunning = running.some(j => j[1] === promptId);
 
     // Extract output prefix and export node from the workflow
     let prefix = null;
@@ -1756,10 +1764,10 @@ async function reconnectToRunningJobs() {
     stageIndex = 0;
     stageTotal = Object.keys(nodeStageMap).length;
 
-    const isRunning = running.length > 0;
     const label = prefix ? prefix.replace(/_3d$/, '').replace(/_/g, ' ') : 'Unknown';
     log(`Reconnected to ${isRunning ? 'running' : 'pending'} job: ${label}`, 'success');
     setGenerating(true, `${isRunning ? 'Fabricating' : 'Queued'}: ${label}...`);
+    updateKillButtonState();
     startPolling();
   } catch {}
 }
@@ -1780,14 +1788,38 @@ async function checkConnection() {
     if (resp.ok) {
       connDot.classList.add('connected');
       connText.textContent = 'ComfyUI Online';
-      // Check queue
+      // Check queue with per-user position
       const qResp = await fetch(`${API_BASE}/api/queue`);
       const q = await qResp.json();
-      const running = q.queue_running?.length || 0;
-      const pending = q.queue_pending?.length || 0;
-      queueStatus.textContent = running > 0
-        ? `Queue: ${running} running, ${pending} pending`
-        : pending > 0 ? `Queue: ${pending} pending` : '';
+      const running = q.queue_running || [];
+      const pending = q.queue_pending || [];
+      const totalRunning = running.length;
+      const totalPending = pending.length;
+
+      // Find this user's position in the pending queue
+      let myPosition = -1;
+      for (let i = 0; i < pending.length; i++) {
+        const extraData = pending[i][3] || {};
+        if (extraData.client_id === wsClientId) {
+          // Position = jobs running (1) + jobs ahead in pending queue
+          myPosition = totalRunning + i + 1;
+          break;
+        }
+      }
+      const myJobRunning = running.some(j => (j[3] || {}).client_id === wsClientId);
+
+      let statusText = '';
+      if (totalRunning > 0 || totalPending > 0) {
+        statusText = `Queue: ${totalRunning} running, ${totalPending} pending`;
+        if (myJobRunning) {
+          statusText += ' | Your job is running';
+        } else if (myPosition > 0) {
+          const estMinutes = myPosition * 2;  // ~2 min per generation
+          statusText += ` | Your job: #${myPosition} (~${estMinutes}m)`;
+        }
+      }
+      queueStatus.textContent = statusText;
+      updateKillButtonState();
     }
   } catch {
     // Don't show "Offline" during active generation — ComfyUI is just busy on GPU
@@ -1914,6 +1946,38 @@ async function tryPreloadModel(unit, skin) {
   // No previous generation found — that's fine, leave preview empty
 }
 
+async function getRunningJobClientId() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/queue`);
+    if (!resp.ok) return null;
+    const q = await resp.json();
+    const running = q.queue_running || [];
+    if (running.length === 0) return null;
+    const extraData = running[0][3] || {};
+    return extraData.client_id || null;
+  } catch { return null; }
+}
+
+async function updateKillButtonState() {
+  const btn = $('btnKill');
+  const runningClientId = await getRunningJobClientId();
+
+  if (!runningClientId) {
+    btn.disabled = true;
+    btn.title = 'No running job';
+    return;
+  }
+
+  if (runningClientId !== wsClientId) {
+    btn.disabled = true;
+    btn.title = "Another user's job is running";
+    return;
+  }
+
+  btn.disabled = false;
+  btn.title = 'Interrupt your running job';
+}
+
 // ── Events ──
 function bindEvents() {
   unitSelect.addEventListener('change', () => {
@@ -1945,20 +2009,48 @@ function bindEvents() {
   });
   $('btnKill').addEventListener('click', async () => {
     try {
+      // Safety net: double-check ownership even though button should be disabled
+      const runningClientId = await getRunningJobClientId();
+      if (runningClientId && runningClientId !== wsClientId) {
+        log('Cannot kill — another user\'s job is running', 'error');
+        updateKillButtonState();
+        return;
+      }
       await fetch(`${API_BASE}/api/interrupt`, { method: 'POST' });
       log('Interrupted running job', 'error');
       setGenerating(false);
       setStatus('Interrupted', 'error');
+      await checkConnection();
     } catch (e) { log('Kill failed: ' + e.message, 'error'); }
   });
   $('btnClearQueue').addEventListener('click', async () => {
     try {
+      // Get current queue and find only our pending jobs
+      const resp = await fetch(`${API_BASE}/api/queue`);
+      if (!resp.ok) { log('Clear failed: could not fetch queue', 'error'); return; }
+      const q = await resp.json();
+      const pending = q.queue_pending || [];
+
+      const myPendingIds = pending
+        .filter(job => {
+          const extraData = job[3] || {};
+          return extraData.client_id === wsClientId;
+        })
+        .map(job => job[1]);
+
+      if (myPendingIds.length === 0) {
+        log('No pending jobs to clear');
+        return;
+      }
+
+      // ComfyUI API: { delete: [prompt_id, ...] } removes specific entries
       await fetch(`${API_BASE}/api/queue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clear: true })
+        body: JSON.stringify({ delete: myPendingIds })
       });
-      log('Queue cleared', 'error');
+      log(`Cleared ${myPendingIds.length} pending job(s)`);
+      await checkConnection();  // Refresh queue display immediately
     } catch (e) { log('Clear failed: ' + e.message, 'error'); }
   });
   const fastToggle = $('fastToggle');
