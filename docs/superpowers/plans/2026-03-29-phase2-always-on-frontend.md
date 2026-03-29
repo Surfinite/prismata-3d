@@ -8,6 +8,11 @@
 
 **Tech Stack:** Express.js, AWS SDK v3, nginx, certbot, systemd
 
+**Limitations:**
+- Local raw-IP or localhost access is unsupported — uses the canonical `fabricate.prismata.live` hostname for mode detection. Local testing requires manual tweaks.
+- S3 list/check routes do not paginate `ListObjectsV2`. Acceptable for current dataset size; optimize later if model volume grows significantly.
+- Site box is still spot — "always-on" is improved but not guaranteed. Recovery infrastructure (EIP + ASG) handles spot reclaim.
+
 **Spec:** `docs/superpowers/specs/2026-03-29-multi-user-fabrication-terminal-design.md` — Phase 2 section + "Site Box API Routes" + "DNS and Nginx"
 
 **Site box:** Existing `t3.micro spot`, EIP `<SITE_BOX_EIP>`, Ubuntu, Node.js v22, runs prismata.live (Next.js port 3000), nginx + certbot SSL. SSH: `ssh -i ~/.ssh/<SSH_KEY>.pem ubuntu@<SITE_BOX_EIP>`
@@ -29,7 +34,7 @@ infra/site/
 ├── server.js                 # Main server: static files + API routes + API 404 handler
 ├── routes/
 │   ├── s3.js                 # S3 routes (check, list, model-url, favorites, reject)
-│   └── status.js             # GET /api/status + GET /healthz
+│   └── status.js             # GET /api/status
 ├── lib/
 │   └── s3client.js           # Shared S3 client singleton
 ├── fabricate.service          # systemd unit file
@@ -424,9 +429,7 @@ aws s3api get-bucket-cors --bucket prismata-3d-models --region us-east-1
 
 Should show the CORS rule with `fabricate.prismata.live` in AllowedOrigins.
 
-- [ ] **Step 3: Commit a note (no code change, but document it)**
-
-No file to commit — this is an infrastructure configuration. The CORS config is documented in the spec and this plan.
+**Note:** Model preview testing over plain HTTP (before certbot) may still fail CORS because the CORS rule only allows `https://`. This is expected — don't treat it as a bug until SSL is live.
 
 ---
 
@@ -577,6 +580,13 @@ Add guards to GPU-dependent actions. At the top of `startGeneration()`:
 
 Add the same guard at the top of the Kill handler and Clear My Queue handler.
 
+Also guard metadata writes explicitly (the route doesn't exist on site box):
+
+```javascript
+// In the metadata save function, add at the top:
+  if (IS_SITE_BOX) return;  // No metadata endpoint in browse mode
+```
+
 Also add to `init()`, after `bindEvents()`:
 
 ```javascript
@@ -602,11 +612,31 @@ Also add to `init()`, after `bindEvents()`:
   }
 ```
 
-- [ ] **Step 8: Remove all remaining references to API_BASE**
+- [ ] **Step 8: Verify all static asset loads work in both modes**
+
+Search for all fetches of `descriptions.json`, `manifest.json`, sprite images, or other static assets. For each:
+- On site box: must use `ORIGIN` or relative paths (served by Express static middleware)
+- On GPU: must use existing ComfyUI paths (`/api/view?...` or `/prismata-assets/...`)
+
+In particular, check `descriptions.json` loading — if it uses a ComfyUI-specific path, add the same mode-aware pattern used for manifest:
+
+```javascript
+  const descPaths = [
+    'descriptions.json',
+    `${ORIGIN}/descriptions.json`,
+  ];
+  if (!IS_SITE_BOX) {
+    descPaths.push(`${ORIGIN}/api/view?filename=prismata-assets/descriptions.json&type=input`);
+  }
+```
+
+Also check sprite preview loading (`/api/view?filename=...&type=input`). On site box, sprites won't be available (they're on the GPU's filesystem). This is acceptable for Phase 2 — sprite previews only matter when generating, which is disabled in browse mode. But confirm no JS errors are thrown.
+
+- [ ] **Step 9: Remove all remaining references to API_BASE**
 
 Search the file for `API_BASE`. There should be zero remaining. Every call should use a route helper or `ORIGIN` directly.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add infra/frontend/index.html
@@ -748,7 +778,7 @@ $SSH "sudo cp /tmp/fabricate-package.json /opt/fabricate/package.json && \
 
 # 7. Install npm dependencies
 echo "--- Installing dependencies ---"
-$SSH "cd /opt/fabricate && npm install --production"
+$SSH "cd /opt/fabricate && npm install --omit=dev"
 
 # 8. Install systemd service
 echo "--- Installing service ---"
@@ -760,7 +790,11 @@ $SSH "sudo cp /tmp/fabricate.service /etc/systemd/system/fabricate.service && \
 # 9. Check service is running
 echo "--- Verifying service ---"
 sleep 2
-$SSH "sudo systemctl is-active fabricate && curl -sf http://127.0.0.1:3100/healthz"
+if ! $SSH "sudo systemctl is-active fabricate && curl -sf http://127.0.0.1:3100/healthz"; then
+    echo "ERROR: Service failed to start. Recent logs:"
+    $SSH "sudo journalctl -u fabricate -n 50 --no-pager"
+    exit 1
+fi
 
 echo ""
 echo "=== Fabricate server deployed ==="
