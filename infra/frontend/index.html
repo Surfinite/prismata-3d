@@ -1211,7 +1211,10 @@ label[title], .toggle-label[title], span[title] {
     </div>
     <div class="status-bar">
       <span><span class="status-dot" id="connDot"></span><span id="connText">Checking...</span></span>
+      <span id="sessionCountdown" style="display:none; font-family:var(--mono); font-size:12px; color:var(--accent);"></span>
       <span id="queueStatus"></span>
+      <button class="btn-action" id="btnWakeGpu" style="display:none; background:var(--accent); color:var(--bg-base); font-weight:600; border:none; padding:6px 14px; cursor:pointer; border-radius:3px;">Wake GPU</button>
+      <button class="btn-action" id="btnRequestAccess" style="display:none; background:var(--accent); color:var(--bg-base); font-weight:600; border:none; padding:6px 14px; cursor:pointer; border-radius:3px;">Request Access</button>
       <div class="favs-badge-wrapper">
         <button class="favs-badge" id="favsBadge" title="View favorites">
           <span class="favs-badge-star">&#9733;</span>
@@ -1477,6 +1480,9 @@ label[title], .toggle-label[title], span[title] {
         </div>
       </div>
 
+      <div class="subsection-label">Fabricator</div>
+      <input type="text" id="fabricatorName" class="mock-input" placeholder="Your name (optional)" maxlength="32" style="width:100%">
+
       <!-- Generate -->
       <div style="display:flex;gap:8px;align-items:stretch;">
         <button class="btn-generate" id="btnGenerate" disabled style="flex:1;">
@@ -1577,14 +1583,19 @@ label[title], .toggle-label[title], span[title] {
 // Talks to ComfyUI API on same origin
 // ═══════════════════════════════════════════════════════════════
 
-// Mode-aware API routing by hostname.
-// Site-box mode: S3 via Express /api/s3/..., no GPU available.
-// GPU legacy mode: everything via ComfyUI /fabricate/api/... and /api/...
+// Mode-aware API routing.
+// On site box: S3 via /api/s3/..., GPU via /api/gpu/... (proxied by Express)
+// GPU legacy mode (direct trycloudflare URL): everything via ComfyUI /fabricate/api/... and /api/...
 const ORIGIN = window.location.origin;
 const IS_SITE_BOX = window.location.hostname === 'fabricate.prismata.live';
-let gpuAvailable = !IS_SITE_BOX;
 
-// Route helpers
+// Application state — driven by /api/status polling
+let appState = 'browse'; // browse, requesting, request_expired, request_denied, starting, ready, launch_failed, gpu_idle, session_expired
+let gpuAvailable = false;
+let sessionInfo = null; // { id, expires_at, remaining_seconds }
+let countdownInterval = null;
+
+// Route helpers — S3 routes (same as before)
 function s3CheckUrl(unit, skin) {
   return IS_SITE_BOX
     ? `${ORIGIN}/api/s3/check/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}`
@@ -1618,11 +1629,23 @@ async function s3ModelUrl(unit, skin, fmt, filename) {
   if (filename) params.set('filename', filename);
   return `${ORIGIN}/fabricate/api/s3-model/${encodeURIComponent(unit)}/${encodeURIComponent(skin)}?${params}`;
 }
+
+// GPU route helpers — site box proxies through /api/gpu/..., legacy mode uses direct ComfyUI URLs
 function gpuUrl(path) {
+  if (IS_SITE_BOX) {
+    // Map legacy ComfyUI paths to proxy routes
+    if (path === '/api/prompt') return `${ORIGIN}/api/gpu/prompt`;
+    if (path === '/api/queue') return `${ORIGIN}/api/gpu/queue`;
+    if (path.startsWith('/api/history/')) return `${ORIGIN}/api/gpu/history/${path.slice('/api/history/'.length)}`;
+    if (path === '/api/interrupt') return `${ORIGIN}/api/gpu/interrupt`;
+    if (path === '/api/system_stats') return `${ORIGIN}/api/gpu/system_stats`;
+    if (path === '/api/view') return `${ORIGIN}/api/gpu/view`;
+    return `${ORIGIN}/api/gpu${path}`;
+  }
   return `${ORIGIN}${path}`;
 }
 function metadataUrl() {
-  return `${ORIGIN}/fabricate/metadata`;
+  return IS_SITE_BOX ? `${ORIGIN}/api/gpu/metadata` : `${ORIGIN}/fabricate/metadata`;
 }
 
 // ── State ──
@@ -1687,9 +1710,16 @@ const wsClientId = sessionStorage.getItem('fabricate_client_id') || crypto.rando
 sessionStorage.setItem('fabricate_client_id', wsClientId);
 
 function connectWebSocket() {
-  if (IS_SITE_BOX) return;  // No WebSocket in browse mode
+  if (!IS_SITE_BOX && !gpuAvailable) return; // Legacy mode: no GPU
+  if (IS_SITE_BOX && appState !== 'ready') return; // Site box: only connect when GPU ready
+
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${wsProto}//${location.host}/ws?clientId=${wsClientId}`;
+  let wsUrl;
+  if (IS_SITE_BOX) {
+    wsUrl = `${wsProto}//${location.host}/api/gpu/ws?clientId=${wsClientId}`;
+  } else {
+    wsUrl = `${wsProto}//${location.host}/ws?clientId=${wsClientId}`;
+  }
 
   try {
     ws = new WebSocket(wsUrl);
@@ -1700,8 +1730,12 @@ function connectWebSocket() {
       } catch {}
     };
     ws.onclose = () => {
-      // Reconnect after 5s
-      setTimeout(connectWebSocket, 5000);
+      ws = null;
+      // Reconnect after 5s if still in ready state
+      setTimeout(() => {
+        if (IS_SITE_BOX && appState === 'ready') connectWebSocket();
+        if (!IS_SITE_BOX && gpuAvailable) connectWebSocket();
+      }, 5000);
     };
     ws.onerror = () => {};
   } catch {}
@@ -1749,7 +1783,8 @@ function handleWsMessage(msg) {
 
 // ── Reconnect to running/pending jobs on page load ──
 async function reconnectToRunningJobs() {
-  if (IS_SITE_BOX) return;
+  if (IS_SITE_BOX && appState !== 'ready') return;
+  if (!IS_SITE_BOX && !gpuAvailable) return;
   try {
     const resp = await fetch(gpuUrl('/api/queue'));
     if (!resp.ok) return;
@@ -1815,7 +1850,7 @@ async function reconnectToRunningJobs() {
     const label = prefix ? prefix.replace(/_3d$/, '').replace(/_/g, ' ') : 'Unknown';
     log(`Reconnected to ${isRunning ? 'running' : 'pending'} job: ${label}`, 'success');
     setGenerating(true, `${isRunning ? 'Fabricating' : 'Queued'}: ${label}...`);
-    updateKillButtonState();
+    await checkConnection();
     startPolling();
   } catch {}
 }
@@ -1825,26 +1860,246 @@ async function init() {
   await checkConnection();
   await loadManifest();
   bindEvents();
-  if (IS_SITE_BOX) {
+
+  // Initial UI state based on appState
+  if (!gpuAvailable) {
     $('btnGenerate').disabled = true;
-    $('btnGenerate').title = 'GPU not available — browse mode';
+    $('btnGenerate').title = 'GPU not available';
     $('btnKill').disabled = true;
     $('btnClearQueue').disabled = true;
   }
+
   connectWebSocket();
-  await reconnectToRunningJobs();
-  setInterval(checkConnection, 15000);
+  if (gpuAvailable) {
+    await reconnectToRunningJobs();
+  }
+
+  // Single setTimeout polling loop — adaptive interval, no duplicate setInterval calls
+  async function pollLoop() {
+    await checkConnection();
+    const interval = getPollingInterval();
+    setTimeout(pollLoop, interval);
+  }
+  pollLoop();
+
+  // Request Access button handler
+  $('btnRequestAccess').addEventListener('click', requestAccess);
+
+  // Wake GPU button handler
+  $('btnWakeGpu').addEventListener('click', wakeGpu);
+
+  // Fabricator name persistence
+  const fabricatorInput = $('fabricatorName');
+  fabricatorInput.value = localStorage.getItem('fabricate_name') || '';
+  fabricatorInput.addEventListener('change', () => {
+    const name = fabricatorInput.value.trim();
+    if (name) {
+      localStorage.setItem('fabricate_name', name);
+    } else {
+      localStorage.removeItem('fabricate_name');
+    }
+  });
+}
+
+function getPollingInterval() {
+  switch (appState) {
+    case 'requesting': return 5000;
+    case 'starting': return 5000;
+    case 'ready': return 15000;
+    default: return 30000; // browse, gpu_idle, session_expired, etc.
+  }
+}
+
+async function requestAccess() {
+  const btn = $('btnRequestAccess');
+  btn.disabled = true;
+  btn.textContent = 'Requesting...';
+
+  try {
+    const resp = await fetch(`${ORIGIN}/api/request-access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await resp.json();
+
+    if (resp.status === 429) {
+      log(`Rate limited — try again in ${data.retry_after_seconds}s`, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Request Access';
+      return;
+    }
+
+    if (resp.status === 500) {
+      log(data.error || 'Failed to send request', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Request Access';
+      return;
+    }
+
+    if (data.status === 'pending' || data.status === 'already_pending') {
+      log('Access request sent — waiting for approval...', 'success');
+      appState = 'requesting';
+      btn.style.display = 'none';
+      connText.textContent = 'Access requested — waiting for approval...';
+    } else if (data.status === 'already_active') {
+      log('Session already active!', 'success');
+      await checkConnection();
+    }
+  } catch (err) {
+    log('Failed to send request: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Request Access';
+  }
+}
+
+async function wakeGpu() {
+  const btn = $('btnWakeGpu');
+  btn.disabled = true;
+  btn.textContent = 'Waking...';
+
+  try {
+    const resp = await fetch(`${ORIGIN}/api/wake-gpu`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await resp.json();
+
+    if (data.status === 'wake_requested') {
+      log('GPU launch requested — starting up (~4 min)', 'success');
+      btn.style.display = 'none';
+      appState = 'starting';
+      connText.textContent = 'GPU starting up (~4 min)...';
+    } else if (data.status === 'already_ready') {
+      log('GPU is already online', 'success');
+      await checkConnection();
+    } else if (data.status === 'already_launching') {
+      log('GPU is already starting up', 'success');
+      btn.style.display = 'none';
+    } else {
+      log(data.error || data.message || 'Unexpected response', 'error');
+    }
+  } catch (err) {
+    log('Failed to wake GPU: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Wake GPU';
+  }
 }
 
 async function checkConnection() {
   if (IS_SITE_BOX) {
     try {
       const resp = await fetch(`${ORIGIN}/api/status`, { signal: AbortSignal.timeout(5000) });
-      if (resp.ok) {
-        const status = await resp.json();
+      if (!resp.ok) throw new Error('status fetch failed');
+      const status = await resp.json();
+      const prevState = appState;
+      appState = status.state;
+      sessionInfo = status.session;
+
+      // Update connection indicator
+      if (appState === 'ready') {
+        connDot.classList.add('connected');
+        connText.textContent = status.message || 'GPU Online';
+        gpuAvailable = true;
+      } else {
         connDot.classList.remove('connected');
-        connText.textContent = status.message || 'GPU Offline — Browse Mode';
+        connText.textContent = status.message || 'GPU Offline';
+        gpuAvailable = false;
+      }
+
+      // Update session countdown
+      const countdownEl = $('sessionCountdown');
+      if (sessionInfo && sessionInfo.remaining_seconds > 0) {
+        countdownEl.style.display = '';
+        updateCountdown(sessionInfo.remaining_seconds);
+      } else {
+        countdownEl.style.display = 'none';
+        if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+      }
+
+      // Update Request Access button visibility
+      const btnRequest = $('btnRequestAccess');
+      if (['browse', 'request_expired', 'request_denied', 'session_expired'].includes(appState)) {
+        btnRequest.style.display = '';
+        btnRequest.textContent = appState === 'browse' ? 'Request Access' : 'Request Access Again';
+      } else {
+        btnRequest.style.display = 'none';
+      }
+
+      // Update Wake GPU button visibility (visible when session active but GPU idle)
+      const btnWake = $('btnWakeGpu');
+      if (appState === 'gpu_idle') {
+        btnWake.style.display = '';
+      } else {
+        btnWake.style.display = 'none';
+      }
+
+      // Update generation controls
+      if (appState === 'ready') {
+        $('btnGenerate').disabled = false;
+        $('btnGenerate').title = '';
+        $('btnKill').disabled = false;
+        $('btnClearQueue').disabled = false;
+      } else {
+        if (!currentPromptId) {
+          $('btnGenerate').disabled = true;
+          $('btnGenerate').title = appState === 'starting' ? 'GPU starting up...' : 'GPU not available';
+        }
+        if (appState !== 'ready') {
+          $('btnKill').disabled = true;
+          $('btnClearQueue').disabled = true;
+        }
+      }
+
+      // Queue status (only when GPU is ready)
+      if (appState === 'ready') {
+        try {
+          const qResp = await fetch(gpuUrl('/api/queue'));
+          if (qResp.ok) {
+            const q = await qResp.json();
+            const running = q.queue_running || [];
+            const pending = q.queue_pending || [];
+            const totalRunning = running.length;
+            const totalPending = pending.length;
+
+            let myPosition = -1;
+            for (let i = 0; i < pending.length; i++) {
+              const extraData = pending[i][3] || {};
+              if (extraData.client_id === wsClientId) {
+                myPosition = totalRunning + i + 1;
+                break;
+              }
+            }
+            const myJobRunning = running.some(j => (j[3] || {}).client_id === wsClientId);
+
+            let statusStr = '';
+            if (totalRunning > 0 || totalPending > 0) {
+              statusStr = `Queue: ${totalRunning} running, ${totalPending} pending`;
+              if (myJobRunning) {
+                statusStr += ' | Your job is running';
+              } else if (myPosition > 0) {
+                const estMinutes = myPosition * 2;
+                statusStr += ` | Your job: #${myPosition} (~${estMinutes}m)`;
+              }
+            }
+            queueStatus.textContent = statusStr;
+            updateKillButtonState(running, myJobRunning, totalRunning);
+          }
+        } catch {}
+      } else {
         queueStatus.textContent = '';
+      }
+
+      // State transitions — connect/disconnect WS
+      if (prevState !== 'ready' && appState === 'ready') {
+        // GPU just became ready — connect WS and try reconnecting to jobs
+        connectWebSocket();
+        reconnectToRunningJobs();
+        log('GPU online — ready to fabricate', 'success');
+      }
+      if (prevState === 'ready' && appState !== 'ready') {
+        // GPU went away
+        if (ws) { ws.close(); ws = null; }
+        log('GPU offline', 'error');
       }
     } catch {
       connDot.classList.remove('connected');
@@ -1853,13 +2108,14 @@ async function checkConnection() {
     }
     return;
   }
+
   // GPU legacy mode: existing checkConnection behavior unchanged
   try {
     const resp = await fetch(gpuUrl('/api/system_stats'), { signal: AbortSignal.timeout(5000) });
     if (resp.ok) {
       connDot.classList.add('connected');
       connText.textContent = 'ComfyUI Online';
-      // Check queue with per-user position
+      gpuAvailable = true;
       const qResp = await fetch(gpuUrl('/api/queue'));
       if (!qResp.ok) return;
       const q = await qResp.json();
@@ -1868,50 +2124,74 @@ async function checkConnection() {
       const totalRunning = running.length;
       const totalPending = pending.length;
 
-      // Find this user's position in the pending queue
       let myPosition = -1;
       for (let i = 0; i < pending.length; i++) {
         const extraData = pending[i][3] || {};
         if (extraData.client_id === wsClientId) {
-          // Position = jobs running (1) + jobs ahead in pending queue
           myPosition = totalRunning + i + 1;
           break;
         }
       }
       const myJobRunning = running.some(j => (j[3] || {}).client_id === wsClientId);
 
-      let statusText = '';
+      let statusStr = '';
       if (totalRunning > 0 || totalPending > 0) {
-        statusText = `Queue: ${totalRunning} running, ${totalPending} pending`;
+        statusStr = `Queue: ${totalRunning} running, ${totalPending} pending`;
         if (myJobRunning) {
-          statusText += ' | Your job is running';
+          statusStr += ' | Your job is running';
         } else if (myPosition > 0) {
-          const estMinutes = myPosition * 2;  // ~2 min per generation
-          statusText += ` | Your job: #${myPosition} (~${estMinutes}m)`;
+          const estMinutes = myPosition * 2;
+          statusStr += ` | Your job: #${myPosition} (~${estMinutes}m)`;
         }
       }
-      queueStatus.textContent = statusText;
-      // Update kill button state using already-fetched queue data
-      const killBtn = $('btnKill');
-      if (myJobRunning) {
-        killBtn.disabled = false;
-        killBtn.title = 'Interrupt your running job';
-      } else if (totalRunning > 0) {
-        killBtn.disabled = true;
-        killBtn.title = "Another user's job is running";
-      } else {
-        killBtn.disabled = true;
-        killBtn.title = 'No running job';
-      }
+      queueStatus.textContent = statusStr;
+      updateKillButtonState(running, myJobRunning, totalRunning);
     }
   } catch {
-    // Don't show "Offline" during active generation — ComfyUI is just busy on GPU
     if (!currentPromptId) {
       connDot.classList.remove('connected');
       connText.textContent = 'Offline';
+      gpuAvailable = false;
       queueStatus.textContent = '';
     }
   }
+}
+
+function updateKillButtonState(running, myJobRunning, totalRunning) {
+  const killBtn = $('btnKill');
+  if (myJobRunning) {
+    killBtn.disabled = false;
+    killBtn.title = 'Interrupt your running job';
+  } else if (totalRunning > 0) {
+    killBtn.disabled = true;
+    killBtn.title = "Another user's job is running";
+  } else {
+    killBtn.disabled = true;
+    killBtn.title = 'No running job';
+  }
+}
+
+function updateCountdown(remainingSeconds) {
+  const countdownEl = $('sessionCountdown');
+  let remaining = remainingSeconds;
+
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  function render() {
+    if (remaining <= 0) {
+      countdownEl.textContent = 'Session expired';
+      if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+      return;
+    }
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
+    countdownEl.textContent = `Session: ${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+    remaining--;
+  }
+
+  render();
+  countdownInterval = setInterval(render, 1000);
 }
 
 async function loadManifest() {
@@ -1920,7 +2200,7 @@ async function loadManifest() {
     'manifest.json',
     `${ORIGIN}/manifest.json`,
   ];
-  if (!IS_SITE_BOX) {
+  if (!IS_SITE_BOX || gpuAvailable) {
     paths.push(`${ORIGIN}/api/view?filename=prismata-assets/manifest.json&type=input`);
     paths.push(`${ORIGIN}/prismata-assets/manifest.json`);
   }
@@ -1985,16 +2265,16 @@ function updateSpritePreview() {
   const parts = path.split('/');
   const filename = parts.pop();
   const subfolder = 'prismata-assets/' + parts.join('/');
-  if (!IS_SITE_BOX) {
+  if (gpuAvailable) {
     spritePreview.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=input`;
     spritePreview.style.display = 'block';
     spritePlaceholder.style.display = 'none';
   } else {
-    spritePreview.src = '';  // Sprites not available in browse mode
+    spritePreview.src = '';  // Sprites not available without GPU
     spritePreview.style.display = 'none';
     spritePlaceholder.style.display = 'flex';
   }
-  if (!IS_SITE_BOX) btnGenerate.disabled = false;
+  if (gpuAvailable) btnGenerate.disabled = false;
 
   // Try to preload a previous generation for this unit/skin
   tryPreloadModel(unit, skin);
@@ -2051,26 +2331,6 @@ async function getRunningJobClientId() {
   } catch { return null; }
 }
 
-async function updateKillButtonState() {
-  const btn = $('btnKill');
-  const runningClientId = await getRunningJobClientId();
-
-  if (!runningClientId) {
-    btn.disabled = true;
-    btn.title = 'No running job';
-    return;
-  }
-
-  if (runningClientId !== wsClientId) {
-    btn.disabled = true;
-    btn.title = "Another user's job is running";
-    return;
-  }
-
-  btn.disabled = false;
-  btn.title = 'Interrupt your running job';
-}
-
 // ── Events ──
 function bindEvents() {
   unitSelect.addEventListener('change', () => {
@@ -2101,16 +2361,22 @@ function bindEvents() {
     $('expertSection').classList.toggle('open');
   });
   $('btnKill').addEventListener('click', async () => {
-    if (IS_SITE_BOX) return;
+    if (!gpuAvailable) return;
     try {
-      // Safety net: double-check ownership even though button should be disabled
       const runningClientId = await getRunningJobClientId();
       if (runningClientId && runningClientId !== wsClientId) {
         log('Cannot kill — another user\'s job is running', 'error');
-        await updateKillButtonState();
         return;
       }
-      await fetch(gpuUrl('/api/interrupt'), { method: 'POST' });
+      if (IS_SITE_BOX) {
+        await fetch(gpuUrl('/api/interrupt'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: wsClientId }),
+        });
+      } else {
+        await fetch(gpuUrl('/api/interrupt'), { method: 'POST' });
+      }
       log('Interrupted running job', 'error');
       setGenerating(false);
       setStatus('Interrupted', 'error');
@@ -2118,34 +2384,32 @@ function bindEvents() {
     } catch (e) { log('Kill failed: ' + e.message, 'error'); }
   });
   $('btnClearQueue').addEventListener('click', async () => {
-    if (IS_SITE_BOX) return;
+    if (!gpuAvailable) return;
     try {
-      // Get current queue and find only our pending jobs
       const resp = await fetch(gpuUrl('/api/queue'));
       if (!resp.ok) { log('Clear failed: could not fetch queue', 'error'); return; }
       const q = await resp.json();
       const pending = q.queue_pending || [];
-
       const myPendingIds = pending
-        .filter(job => {
-          const extraData = job[3] || {};
-          return extraData.client_id === wsClientId;
-        })
+        .filter(job => (job[3] || {}).client_id === wsClientId)
         .map(job => job[1]);
+      if (myPendingIds.length === 0) { log('No pending jobs to clear'); return; }
 
-      if (myPendingIds.length === 0) {
-        log('No pending jobs to clear');
-        return;
+      if (IS_SITE_BOX) {
+        await fetch(gpuUrl('/api/queue'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delete: myPendingIds, client_id: wsClientId }),
+        });
+      } else {
+        await fetch(gpuUrl('/api/queue'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delete: myPendingIds }),
+        });
       }
-
-      // ComfyUI API: { delete: [prompt_id, ...] } removes specific entries
-      await fetch(gpuUrl('/api/queue'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delete: myPendingIds })
-      });
       log(`Cleared ${myPendingIds.length} pending job(s)`);
-      await checkConnection();  // Refresh queue display immediately
+      await checkConnection();
     } catch (e) { log('Clear failed: ' + e.message, 'error'); }
   });
   const fastToggle = $('fastToggle');
@@ -2202,8 +2466,8 @@ function bindEvents() {
 
 // ── Generation ──
 async function startGeneration() {
-  if (IS_SITE_BOX) {
-    log('GPU is not available — browse mode only', 'error');
+  if (!gpuAvailable) {
+    log('GPU is not available', 'error');
     return;
   }
   const unit = unitSelect.value;
@@ -2239,6 +2503,7 @@ async function startGeneration() {
     file_format: fileFormat,
     white_bg: $('whiteBgToggle').checked,
     fast_mode: $('fastToggle').checked,
+    fabricator: $('fabricatorName').value.trim() || null,
     timestamp: new Date().toISOString()
   };
 
@@ -2725,7 +2990,7 @@ function setGenerating(active, msg) {
     genStartTime = Date.now();
     startElapsedTimer();
   } else {
-    if (!IS_SITE_BOX) btnGenerate.disabled = false;
+    if (gpuAvailable) btnGenerate.disabled = false;
     btnGenerate.classList.remove('generating');
     btnGenerate.textContent = 'Fabricate Unit';
     progressFill.classList.remove('indeterminate');
@@ -2740,7 +3005,7 @@ function setGenerating(active, msg) {
 }
 
 async function saveMetadata(filename) {
-  if (IS_SITE_BOX) return;
+  if (!gpuAvailable) return;
   if (!currentGenParams) return;
   try {
     const meta = { ...currentGenParams, filename };
@@ -2849,10 +3114,10 @@ function renderFavsDropdown() {
       const parts = spritePath.split('/');
       const filename = parts[parts.length - 1];
       const subfolder = parts.slice(0, -1).join('/');
-      if (!IS_SITE_BOX) {
+      if (gpuAvailable) {
         img.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=input&subfolder=${encodeURIComponent(subfolder)}`;
       } else {
-        img.src = '';  // Sprites not available in browse mode
+        img.src = '';  // Sprites not available without GPU
       }
       img.alt = fav.unit;
       item.appendChild(img);
