@@ -34,10 +34,13 @@ echo "--- Uploading service + nginx config ---"
 $SCP "$SCRIPT_DIR/fabricate.service" "$SITE_BOX:/tmp/fabricate.service"
 $SCP "$SCRIPT_DIR/fabricate.nginx.conf" "$SITE_BOX:/tmp/fabricate.nginx.conf"
 
-# 5. Download static assets from S3 on the site box
-echo "--- Downloading assets from S3 ---"
-$SSH "aws s3 cp s3://prismata-3d-models/asset-prep/manifest.json /tmp/fabricate-manifest.json --region us-east-1"
-$SSH "aws s3 cp s3://prismata-3d-models/asset-prep/descriptions.json /tmp/fabricate-descriptions.json --region us-east-1"
+# 5. Download static assets from S3 locally, then upload to site box
+# (site box IAM role doesn't have access to prismata-3d-models bucket)
+echo "--- Downloading assets from S3 (locally) ---"
+aws s3 cp s3://prismata-3d-models/asset-prep/manifest.json /tmp/fabricate-manifest.json --region us-east-1
+aws s3 cp s3://prismata-3d-models/asset-prep/descriptions.json /tmp/fabricate-descriptions.json --region us-east-1
+$SCP /tmp/fabricate-manifest.json "$SITE_BOX:/tmp/fabricate-manifest.json"
+$SCP /tmp/fabricate-descriptions.json "$SITE_BOX:/tmp/fabricate-descriptions.json"
 
 # 6. Move files into place
 echo "--- Installing files ---"
