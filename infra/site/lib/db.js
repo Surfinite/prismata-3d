@@ -270,6 +270,45 @@ function getReadyGpu() {
   return d.prepare("SELECT * FROM gpu_instances WHERE status = 'ready' ORDER BY launched_at ASC LIMIT 1").get() || null;
 }
 
+function getActiveGpuCount() {
+  const d = getDb();
+  const row = d.prepare("SELECT COUNT(*) as cnt FROM gpu_instances WHERE status IN ('launching', 'ready')").get();
+  return row.cnt;
+}
+
+function getReadyGpus() {
+  const d = getDb();
+  return d.prepare("SELECT * FROM gpu_instances WHERE status = 'ready' ORDER BY launched_at ASC").all();
+}
+
+function getLaunchingGpus() {
+  const d = getDb();
+  return d.prepare("SELECT * FROM gpu_instances WHERE status = 'launching' ORDER BY launched_at ASC").all();
+}
+
+function getNextSlot() {
+  const d = getDb();
+  const slotA = d.prepare("SELECT COUNT(*) as cnt FROM gpu_instances WHERE slot = 'A' AND status IN ('launching', 'ready')").get();
+  return slotA.cnt === 0 ? 'A' : 'B';
+}
+
+function getLeastLoadedGpu() {
+  const d = getDb();
+  const rows = d.prepare(`
+    SELECT gi.*,
+      COALESCE((
+        SELECT COUNT(*) FROM prompts p
+        WHERE p.gpu_instance_id = gi.instance_id
+          AND p.status IN ('pending', 'running')
+      ), 0) as active_prompts
+    FROM gpu_instances gi
+    WHERE gi.status = 'ready'
+    ORDER BY active_prompts ASC, gi.launched_at ASC
+    LIMIT 1
+  `).get();
+  return rows || null;
+}
+
 function registerGpuInstance(instanceId, slot, sessionId) {
   const d = getDb();
   const ts = now();
@@ -294,6 +333,16 @@ function markGpuReady(instanceId, privateIp) {
   `).run(privateIp, ts, instanceId);
 }
 
+function failPromptsForGoneGpu(instanceId) {
+  const d = getDb();
+  const ts = now();
+  const result = d.prepare(`
+    UPDATE prompts SET status = 'failed', finished_at = ?, updated_at = ?
+    WHERE gpu_instance_id = ? AND status IN ('pending', 'running')
+  `).run(ts, ts, instanceId);
+  return result.changes;
+}
+
 function markGpuGone(instanceId) {
   const d = getDb();
   const ts = now();
@@ -302,6 +351,11 @@ function markGpuGone(instanceId) {
   `).run(ts, instanceId);
   // Clear client assignments for this GPU
   d.prepare('DELETE FROM client_assignments WHERE gpu_instance_id = ?').run(instanceId);
+  // Fail orphaned active prompts
+  const failed = failPromptsForGoneGpu(instanceId);
+  if (failed > 0) {
+    console.log(`[db] Failed ${failed} orphaned prompt(s) for gone GPU ${instanceId}`);
+  }
 }
 
 // Health failure tracking (Fix D)
@@ -340,8 +394,12 @@ function assignClient(clientId, gpuInstanceId) {
   const d = getDb();
   const ts = now();
   d.prepare(`
-    INSERT OR REPLACE INTO client_assignments (client_id, gpu_instance_id, assigned_at, last_seen_at)
+    INSERT INTO client_assignments (client_id, gpu_instance_id, assigned_at, last_seen_at)
     VALUES (?, ?, ?, ?)
+    ON CONFLICT(client_id) DO UPDATE SET
+      gpu_instance_id = excluded.gpu_instance_id,
+      assigned_at = excluded.assigned_at,
+      last_seen_at = excluded.last_seen_at
   `).run(clientId, gpuInstanceId, ts, ts);
 }
 
@@ -355,9 +413,9 @@ function recordPrompt(promptId, clientId, gpuInstanceId) {
   const d = getDb();
   const ts = now();
   d.prepare(`
-    INSERT INTO prompts (prompt_id, client_id, gpu_instance_id, submitted_at, status)
-    VALUES (?, ?, ?, ?, 'pending')
-  `).run(promptId, clientId, gpuInstanceId, ts);
+    INSERT INTO prompts (prompt_id, client_id, gpu_instance_id, submitted_at, status, updated_at)
+    VALUES (?, ?, ?, ?, 'pending', ?)
+  `).run(promptId, clientId, gpuInstanceId, ts, ts);
 }
 
 function getPromptGpu(promptId) {
@@ -369,6 +427,65 @@ function getPromptGpu(promptId) {
     WHERE p.prompt_id = ?
   `).get(promptId);
   return row || null;
+}
+
+function getClientActivePromptCount(clientId, gpuInstanceId) {
+  const d = getDb();
+  const row = d.prepare(`
+    SELECT COUNT(*) as cnt FROM prompts
+    WHERE client_id = ? AND gpu_instance_id = ? AND status IN ('pending', 'running')
+  `).get(clientId, gpuInstanceId);
+  return row.cnt;
+}
+
+function clearClientAssignment(clientId) {
+  const d = getDb();
+  d.prepare('DELETE FROM client_assignments WHERE client_id = ?').run(clientId);
+}
+
+function updatePromptStatus(promptId, newStatus) {
+  const d = getDb();
+  const ts = now();
+  const prompt = d.prepare('SELECT status FROM prompts WHERE prompt_id = ?').get(promptId);
+  if (!prompt) return false;
+
+  const allowed = ALLOWED_TRANSITIONS[prompt.status];
+  if (!allowed || !allowed.has(newStatus)) return false;
+
+  const isTerminal = newStatus === 'completed' || newStatus === 'failed';
+  const isStarting = newStatus === 'running';
+
+  if (isStarting) {
+    d.prepare(`
+      UPDATE prompts SET status = ?, started_at = ?, updated_at = ? WHERE prompt_id = ?
+    `).run(newStatus, ts, ts, promptId);
+  } else if (isTerminal) {
+    d.prepare(`
+      UPDATE prompts SET status = ?, finished_at = ?, updated_at = ? WHERE prompt_id = ?
+    `).run(newStatus, ts, ts, promptId);
+  } else {
+    d.prepare(`
+      UPDATE prompts SET status = ?, updated_at = ? WHERE prompt_id = ?
+    `).run(newStatus, ts, promptId);
+  }
+  return true;
+}
+
+function touchPrompt(promptId) {
+  const d = getDb();
+  const ts = now();
+  d.prepare('UPDATE prompts SET updated_at = ? WHERE prompt_id = ?').run(ts, promptId);
+}
+
+function getStaleActivePrompts(gpuInstanceId, graceSeconds) {
+  const d = getDb();
+  const cutoff = now() - graceSeconds;
+  return d.prepare(`
+    SELECT * FROM prompts
+    WHERE gpu_instance_id = ? AND status IN ('pending', 'running')
+      AND updated_at < ?
+    ORDER BY submitted_at ASC
+  `).all(gpuInstanceId, cutoff);
 }
 
 // ── Cleanup helpers ──
@@ -449,6 +566,11 @@ module.exports = {
   clearWakeRequested,
   getGpuInstances,
   getReadyGpu,
+  getActiveGpuCount,
+  getReadyGpus,
+  getLaunchingGpus,
+  getNextSlot,
+  getLeastLoadedGpu,
   registerGpuInstance,
   markGpuReady,
   markGpuGone,
@@ -458,8 +580,14 @@ module.exports = {
   getClientAssignment,
   assignClient,
   touchClient,
+  clearClientAssignment,
+  getClientActivePromptCount,
   recordPrompt,
   getPromptGpu,
+  updatePromptStatus,
+  touchPrompt,
+  failPromptsForGoneGpu,
+  getStaleActivePrompts,
   expireStaleRequests,
   expireStaleSessions,
   cleanStaleClientAssignments,
