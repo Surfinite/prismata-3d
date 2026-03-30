@@ -94,6 +94,16 @@ if ! $SSH "sudo systemctl is-active fabricate && curl -sf http://127.0.0.1:3100/
     exit 1
 fi
 
+# 11. Sync server bundle to S3 for spot recovery bootstrap
+echo "--- Syncing server bundle to S3 ---"
+aws s3 sync "$SCRIPT_DIR/" s3://prismata-3d-models/deploy/fabricate/ \
+    --region us-east-1 --exclude "*.sh" --exclude "*.conf" --exclude "*.service" \
+    --exclude "*.md" --exclude "node_modules/*" --quiet
+aws s3 cp "$SCRIPT_DIR/bootstrap.sh" s3://prismata-3d-models/deploy/fabricate/bootstrap.sh \
+    --region us-east-1 --quiet
+aws s3 cp "$FRONTEND_DIR/index.html" s3://prismata-3d-models/frontend/index.html \
+    --region us-east-1 --quiet
+
 echo ""
 echo "=== Fabricate server deployed ==="
 echo "Service: sudo systemctl status fabricate"
