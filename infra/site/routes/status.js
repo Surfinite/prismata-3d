@@ -27,22 +27,17 @@ router.get('/status', (req, res) => {
 
   if (session) {
     const remainingMs = (session.expires_at * 1000) - Date.now();
-    const remainingMin = Math.max(0, Math.floor(remainingMs / 60000));
-    const remainingHrs = Math.floor(remainingMin / 60);
-    const remainingMinPart = remainingMin % 60;
-    const countdown = remainingHrs > 0
-      ? `${remainingHrs}h ${remainingMinPart}m`
-      : `${remainingMin}m`;
 
     // State precedence for active sessions (Fix P):
+    // Session expiry is shown by the dedicated frontend countdown — not repeated in messages.
     // 3. GPU ready
     if (readyGpus.length > 0) {
       state = 'ready';
-      message = `GPU online — session expires in ${countdown}`;
+      message = 'GPU online';
     // 4. GPU launching
     } else if (launchingGpus.length > 0 || lock.inProgress) {
       state = 'starting';
-      message = `GPU starting up (~4 min) — session expires in ${countdown}`;
+      message = 'GPU starting up (~4 min)';
     // 5. Launch cooldown (failed) — checked before wake_requested because cooldown
     //    implies a recent failure even if wake is still set
     } else if (lock.cooldownUntil && Date.now() < lock.cooldownUntil && !session.wake_requested_at) {
@@ -51,11 +46,11 @@ router.get('/status', (req, res) => {
     // 6. Wake requested but not yet launched (reconciler will pick up next tick)
     } else if (session.wake_requested_at) {
       state = 'starting';
-      message = `GPU starting up — session expires in ${countdown}`;
+      message = 'GPU starting up';
     // 7. No GPU, no wake → idle
     } else {
       state = 'gpu_idle';
-      message = `GPU offline — click Wake GPU to start (~4 min). Session expires in ${countdown}`;
+      message = 'GPU offline — click Wake GPU to start (~4 min)';
     }
 
     return res.json({
