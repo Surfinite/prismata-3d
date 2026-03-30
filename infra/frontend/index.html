@@ -2288,7 +2288,9 @@ function updateSpritePreview() {
 }
 
 async function tryPreloadModel(unit, skin) {
-  if (currentPromptId) return; // don't override active generation
+  // Skip if this specific unit/skin has an active generation (avoid loading stale model over it)
+  const hasActiveJob = pendingJobs.some(j => j.unit === unit && j.skin === skin);
+  if (hasActiveJob) return;
   const prefix = `${unit}_${skin}_3d`;
   const fmt = formatSelect.value || 'glb';
 
