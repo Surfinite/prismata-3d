@@ -83,6 +83,9 @@ async function reconcile() {
   if (tickCount % 6 === 0) {
     await reconcilePromptStatuses();
   }
+
+  // 11. Track GPU idle state for shutdown countdown
+  updateGpuIdleState();
 }
 
 // ── Discord polling for pending requests ──
@@ -438,6 +441,25 @@ async function launchGpu(session) {
     console.error('[reconciler] Launch failed:', err.message);
     db.setLaunchLock(false);
     db.setLaunchCooldown();
+  }
+}
+
+// ── GPU idle state tracking ──
+
+function updateGpuIdleState() {
+  const readyGpus = db.getReadyGpus();
+  for (const gpu of readyGpus) {
+    const d = db.getDb();
+    const active = d.prepare(`
+      SELECT COUNT(*) as cnt FROM prompts
+      WHERE gpu_instance_id = ? AND status IN ('pending', 'running')
+    `).get(gpu.instance_id);
+
+    if (active.cnt === 0) {
+      db.markGpuIdle(gpu.instance_id);
+    } else {
+      db.markGpuBusy(gpu.instance_id);
+    }
   }
 }
 

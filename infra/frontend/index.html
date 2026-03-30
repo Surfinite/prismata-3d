@@ -1213,6 +1213,7 @@ label[title], .toggle-label[title], span[title] {
       <span><span class="status-dot" id="connDot"></span><span id="connText">Checking...</span></span>
       <span id="sessionCountdown" style="display:none; font-family:var(--mono); font-size:12px; color:var(--accent);"></span>
       <span id="queueStatus"></span>
+      <span id="idleWarning" style="display:none; color:#ff6b35; font-family:var(--mono); font-size:12px; font-weight:600;"></span>
       <button class="btn-action" id="btnWakeGpu" style="display:none; background:var(--accent); color:var(--bg-base); font-weight:600; border:none; padding:6px 14px; cursor:pointer; border-radius:3px;">Wake GPU</button>
       <button class="btn-action" id="btnRequestAccess" style="display:none; background:var(--accent); color:var(--bg-base); font-weight:600; border:none; padding:6px 14px; cursor:pointer; border-radius:3px;">Request Access</button>
       <div class="favs-badge-wrapper">
@@ -2019,6 +2020,21 @@ async function checkConnection() {
       } else {
         countdownEl.style.display = 'none';
         if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+      }
+
+      // GPU idle shutdown warning (20-min watchdog, warn at 15 min = 900s idle)
+      const gpuInfo = status.gpu;
+      const IDLE_WARN_THRESHOLD = 900; // 15 minutes — 5 min before 20-min shutdown
+      const IDLE_SHUTDOWN = 1200; // 20 minutes
+      const idleWarning = $('idleWarning');
+      if (gpuInfo && gpuInfo.idle_seconds >= IDLE_WARN_THRESHOLD) {
+        const remaining = Math.max(0, IDLE_SHUTDOWN - gpuInfo.idle_seconds);
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        idleWarning.textContent = `GPU shutting down in ${mins}:${String(secs).padStart(2, '0')} — submit a job to keep it alive`;
+        idleWarning.style.display = '';
+      } else {
+        idleWarning.style.display = 'none';
       }
 
       // Update Request Access button visibility

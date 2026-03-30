@@ -65,6 +65,7 @@ router.get('/status', (req, res) => {
         instance_id: readyGpus[0].instance_id,
         slot: readyGpus[0].slot,
         ready_at: db.epochToIso(readyGpus[0].ready_at),
+        idle_seconds: readyGpus[0].idle_since ? Math.floor(Date.now() / 1000) - readyGpus[0].idle_since : 0,
       } : null,
     });
   }

@@ -93,6 +93,9 @@ function initSchema() {
   try {
     db.exec(`ALTER TABLE prompts ADD COLUMN updated_at INTEGER`);
   } catch (e) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE gpu_instances ADD COLUMN idle_since INTEGER`);
+  } catch (e) { /* column already exists */ }
 
   // Phase 4 indexes
   db.exec(`
@@ -378,6 +381,22 @@ function canLaunchGpu() {
   return active.cnt === 0;
 }
 
+// ── GPU idle tracking ──
+
+function markGpuIdle(instanceId) {
+  const d = getDb();
+  const ts = now();
+  // Only set idle_since if not already set (don't reset the timer)
+  d.prepare(`
+    UPDATE gpu_instances SET idle_since = ? WHERE instance_id = ? AND idle_since IS NULL
+  `).run(ts, instanceId);
+}
+
+function markGpuBusy(instanceId) {
+  const d = getDb();
+  d.prepare(`UPDATE gpu_instances SET idle_since = NULL WHERE instance_id = ?`).run(instanceId);
+}
+
 // ── Client assignment helpers ──
 
 function getClientAssignment(clientId) {
@@ -577,6 +596,8 @@ module.exports = {
   incrementHealthFailures,
   resetHealthFailures,
   canLaunchGpu,
+  markGpuIdle,
+  markGpuBusy,
   getClientAssignment,
   assignClient,
   touchClient,
