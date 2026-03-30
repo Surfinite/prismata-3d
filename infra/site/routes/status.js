@@ -65,7 +65,16 @@ router.get('/status', (req, res) => {
         instance_id: readyGpus[0].instance_id,
         slot: readyGpus[0].slot,
         ready_at: db.epochToIso(readyGpus[0].ready_at),
-        idle_seconds: readyGpus[0].idle_since ? Math.floor(Date.now() / 1000) - readyGpus[0].idle_since : 0,
+        // Idle seconds = minimum across all ready GPUs. If any GPU is busy (idle_since NULL), report 0.
+        idle_seconds: (() => {
+          const nowSec = Math.floor(Date.now() / 1000);
+          let minIdle = Infinity;
+          for (const gpu of readyGpus) {
+            if (!gpu.idle_since) return 0; // at least one GPU is busy
+            minIdle = Math.min(minIdle, nowSec - gpu.idle_since);
+          }
+          return minIdle === Infinity ? 0 : minIdle;
+        })(),
       } : null,
     });
   }
