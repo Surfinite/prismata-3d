@@ -1739,12 +1739,20 @@ function connectWebSocket() {
 }
 
 function handleWsMessage(msg) {
-  if (!currentPromptId) return;
+  if (pendingJobs.length === 0 && !currentPromptId) return;
 
-  if (msg.type === 'executing' && msg.data?.prompt_id === currentPromptId) {
+  const msgPromptId = msg.data?.prompt_id;
+  if (!msgPromptId) return;
+
+  // Accept WS messages for any of our pending jobs, not just currentPromptId
+  const isOurJob = msgPromptId === currentPromptId ||
+    pendingJobs.some(j => j.promptId === msgPromptId);
+  if (!isOurJob) return;
+
+  if (msg.type === 'executing') {
     const nodeId = msg.data.node;
     if (nodeId === null) {
-      // Execution complete
+      // Execution complete — pollHistory will handle the result
       return;
     }
     stageIndex++;
@@ -1754,7 +1762,7 @@ function handleWsMessage(msg) {
     log(`Stage: ${stage}`);
   }
 
-  if (msg.type === 'progress' && msg.data?.prompt_id === currentPromptId) {
+  if (msg.type === 'progress') {
     const { value, max } = msg.data;
     if (max > 0) {
       const pct = Math.round((value / max) * 100);
@@ -1767,7 +1775,7 @@ function handleWsMessage(msg) {
     }
   }
 
-  if (msg.type === 'execution_error' && msg.data?.prompt_id === currentPromptId) {
+  if (msg.type === 'execution_error') {
     const nodeId = msg.data.node_id;
     const stage = nodeStageMap[nodeId] || `Node ${nodeId}`;
     const errMsg = msg.data.exception_message || 'Unknown error';
