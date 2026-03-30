@@ -1759,6 +1759,16 @@ function handleWsMessage(msg) {
       // Execution complete — pollHistory will handle the result
       return;
     }
+    // Reset stage counter when a new prompt starts executing
+    if (msgPromptId !== currentPromptId) {
+      currentPromptId = msgPromptId;
+      stageIndex = 0;
+      // Rebuild stage map from the pending job's workflow if available
+      const job = pendingJobs.find(j => j.promptId === msgPromptId);
+      if (job) {
+        stageTotal = Object.keys(nodeStageMap).length; // approximate
+      }
+    }
     stageIndex++;
     const stage = nodeStageMap[nodeId] || `Node ${nodeId}`;
     const counter = stageTotal > 0 ? `[${stageIndex}/${stageTotal}] ` : '';
@@ -2833,25 +2843,19 @@ function startPolling() {
 }
 
 async function pollHistory() {
-  if (!currentPromptId && pendingJobs.length === 0) return;
+  if (pendingJobs.length === 0) return;
 
-  // Poll the active/latest job for UI progress
-  if (currentPromptId) {
-    await pollSinglePrompt(currentPromptId, currentExportNodeId, currentOutputPrefix,
-      unitSelect.value, skinSelect.value, currentGenParams, true);
-  }
-
-  // Poll all other pending jobs (batch completions)
+  // Poll all pending jobs. The one matching currentPromptId is "active" (gets UI updates).
   const stillPending = [];
   for (const job of pendingJobs) {
-    if (job.promptId === currentPromptId) {
-      stillPending.push(job); // handled above or still active
-      continue;
-    }
+    const isActive = job.promptId === currentPromptId;
     const completed = await pollSinglePrompt(job.promptId, job.exportNodeId, job.outputPrefix,
-      job.unit, job.skin, job.genParams, false);
+      job.unit, job.skin, job.genParams, isActive);
     if (!completed) {
       stillPending.push(job);
+    } else if (isActive) {
+      // Active job completed — promote next pending job to active
+      currentPromptId = null;
     }
   }
   pendingJobs = stillPending;
@@ -3306,7 +3310,19 @@ btnThumbsDown.addEventListener('click', () => {
 });
 
 function addToHistory(unit, skin, modelUrl, filename, params) {
-  const spriteUrl = spritePreview.src || '';
+  // Dedup: don't add if same filename already in history
+  if (sessionHistory.some(h => h.filename === filename)) return;
+
+  // Look up sprite from manifest (don't use spritePreview.src — may show different unit)
+  let spriteUrl = '';
+  if (manifest[unit] && manifest[unit][skin]) {
+    const path = manifest[unit][skin];
+    const parts = path.split('/');
+    const fname = parts.pop();
+    const subfolder = 'prismata-assets/' + parts.join('/');
+    spriteUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(fname)}&subfolder=${encodeURIComponent(subfolder)}&type=input`;
+  }
+
   const entry = { unit, skin, url: modelUrl, filename, params: params ? {...params} : null, starred: false, rejected: false, spriteUrl };
   sessionHistory.push(entry);
   currentHistoryIndex = sessionHistory.length - 1;
