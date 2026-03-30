@@ -1222,7 +1222,7 @@ label[title], .toggle-label[title], span[title] {
           <span class="favs-badge-count" id="favsBadgeCount">...</span>
         </button>
         <div class="favs-dropdown" id="favsDropdown">
-          <div class="favs-dropdown-title">Recent Favorites</div>
+          <div class="favs-dropdown-title">Favorites</div>
           <div class="favs-dropdown-grid" id="favsDropdownGrid"></div>
         </div>
       </div>
@@ -3217,8 +3217,8 @@ function renderFavsDropdown() {
     if (spritePath) {
       const img = document.createElement('img');
       const parts = spritePath.split('/');
-      const filename = parts[parts.length - 1];
-      const subfolder = parts.slice(0, -1).join('/');
+      const filename = parts.pop();
+      const subfolder = 'prismata-assets/' + parts.join('/');
       if (gpuAvailable) {
         img.src = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=input&subfolder=${encodeURIComponent(subfolder)}`;
       } else {
@@ -3227,6 +3227,12 @@ function renderFavsDropdown() {
       img.alt = fav.unit;
       item.appendChild(img);
     }
+
+    const label = document.createElement('span');
+    label.className = 'favs-item-label';
+    label.textContent = formatUnitName(fav.unit);
+    label.style.cssText = 'font-size:10px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;display:block';
+    item.appendChild(label);
 
     item.addEventListener('click', () => loadFavoriteModel(fav));
     favsDropdownGrid.appendChild(item);
