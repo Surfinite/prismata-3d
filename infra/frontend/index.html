@@ -1646,6 +1646,7 @@ function metadataUrl() {
 
 // ── State ──
 let manifest = {};
+let s3Models = {}; // {unit: [skin1, skin2, ...]}
 let currentPromptId = null;
 let currentExportNodeId = null;
 let assignedGpuSlot = null; // 'A' or 'B', set by prompt response
@@ -1865,6 +1866,7 @@ async function reconnectToRunningJobs() {
 async function init() {
   await checkConnection();
   await loadManifest();
+  await loadS3Models();
   bindEvents();
 
   // Initial UI state based on appState
@@ -2217,6 +2219,16 @@ function updateCountdown(remainingSeconds) {
   countdownInterval = setInterval(render, 1000);
 }
 
+async function loadS3Models() {
+  if (!IS_SITE_BOX) return;
+  try {
+    const resp = await fetch(`${ORIGIN}/api/s3/list`);
+    if (resp.ok) {
+      s3Models = await resp.json();
+    }
+  } catch {}
+}
+
 async function loadManifest() {
   // Try multiple paths: deployed alongside HTML, ComfyUI view API, root fallback
   const paths = [
@@ -2248,8 +2260,10 @@ function populateUnits() {
   for (const name of units) {
     const opt = document.createElement('option');
     opt.value = name;
-    // Display name: replace underscores/hyphens, title case
-    opt.textContent = formatUnitName(name);
+    const displayName = formatUnitName(name);
+    const hasModel = s3Models[name] && s3Models[name].length > 0;
+    opt.textContent = hasModel ? `${displayName} ✦` : displayName;
+    if (hasModel) opt.style.color = '#00e5a0'; // green for units with S3 models
     unitSelect.appendChild(opt);
   }
 }
@@ -2264,14 +2278,18 @@ function populateSkins(unitName) {
   const skins = manifest[unitName];
   if (!skins) return;
   const skinNames = Object.keys(skins).sort();
+  const unitS3Skins = s3Models[unitName] || [];
   skinSelect.innerHTML = '';
   for (const skin of skinNames) {
     const opt = document.createElement('option');
     opt.value = skin;
-    opt.textContent = skin;
+    const hasModel = unitS3Skins.includes(skin);
+    opt.textContent = hasModel ? `${skin} ✦` : skin;
+    if (hasModel) opt.style.color = '#00e5a0'; // green — has S3 model
     if (skin === 'Regular') opt.selected = true;
     skinSelect.appendChild(opt);
   }
+  updateSpritePreview();
 }
 
 function updateSpritePreview() {
