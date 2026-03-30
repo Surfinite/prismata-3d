@@ -2978,17 +2978,18 @@ function loadModelFromUrl(modelUrl, filename) {
   previewViewport.appendChild(modelViewerEl);
 
   // For untextured meshes: apply clay material so geometry detail is visible
+  // Check the actual model materials, not metadata — metadata may be missing for S3 models
   modelViewerEl.addEventListener('load', () => {
-    const wasTextured = currentGenParams?.texture === true;
-    if (wasTextured) return;
-
     const model = modelViewerEl.model;
     if (!model) return;
+
+    // Check if any material has an actual texture — if so, leave it alone
+    const hasTexture = model.materials.some(mat => mat.pbrMetallicRoughness?.baseColorTexture?.texture);
+    if (hasTexture) return;
+
+    // No textures found — apply clay material for better geometry visibility
     for (const mat of model.materials) {
       const pbr = mat.pbrMetallicRoughness;
-      if (pbr.baseColorTexture) {
-        pbr.baseColorTexture.setTexture(null);
-      }
       pbr.setBaseColorFactor([0.35, 0.37, 0.4, 1.0]);
       pbr.setMetallicFactor(0.0);
       pbr.setRoughnessFactor(1.0);
