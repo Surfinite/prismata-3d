@@ -2228,6 +2228,11 @@ async function loadS3Models() {
     const resp = await fetch(`${ORIGIN}/api/s3/list`);
     if (resp.ok) {
       s3Models = await resp.json();
+      // Re-populate dropdowns now that S3 model data is available for color coding
+      if (Object.keys(manifest).length > 0) {
+        populateUnits();
+        if (unitSelect.value) populateSkins(unitSelect.value);
+      }
     }
   } catch {}
 }
