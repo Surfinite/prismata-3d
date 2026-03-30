@@ -1294,6 +1294,18 @@ label[title], .toggle-label[title], span[title] {
               </div>
             </div>
           </div>
+
+          <!-- Texturing (moved from Advanced — most users want this) -->
+          <div class="toggle-row" style="margin-top:8px">
+            <div>
+              <span class="toggle-label">Generate Textures</span>
+              <span class="toggle-hint">Paint model bakes color texture onto mesh (~30s extra)</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="textureToggle">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1347,18 +1359,8 @@ label[title], .toggle-label[title], span[title] {
               </label>
             </div>
 
-            <!-- Texturing -->
-            <div class="subsection-label">Texturing</div>
-            <div class="toggle-row">
-              <div>
-                <span class="toggle-label">Generate Textures</span>
-                <span class="toggle-hint">Paint model bakes color texture onto mesh (~30s extra)</span>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="textureToggle">
-                <span class="toggle-track"></span>
-              </label>
-            </div>
+            <!-- Texturing toggle moved to Generation Settings -->
+            <!-- Texture sub-settings remain here in Advanced -->
             <div id="textureSettings" style="display:none;flex-direction:column;gap:12px">
               <div>
                 <label for="paintModelSelect" title="Model for texture generation. v2.0 = best quality, Turbo = faster but lower quality. Auto-downloads on first use (~5 min).">Paint Model</label>
