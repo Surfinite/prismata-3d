@@ -1289,7 +1289,7 @@ label[title], .toggle-label[title], span[title] {
             <div class="param-group">
               <label for="seedInput" title="Random seed for reproducibility. Same seed + same settings = same output. Change to get different variations.">Seed</label>
               <div class="seed-row">
-                <input type="number" id="seedInput" value="42" min="0" max="999999999">
+                <input type="number" id="seedInput" value="" min="0" max="999999999">
                 <button class="btn-randomize" id="btnRandomize" title="Randomize seed">&#x21bb;</button>
               </div>
             </div>
@@ -1870,6 +1870,7 @@ async function init() {
   await loadManifest();
   await loadS3Models();
   bindEvents();
+  seedInput.value = Math.floor(Math.random() * 999999999);
 
   // Initial UI state based on appState
   if (!gpuAvailable) {
@@ -2478,7 +2479,7 @@ function bindEvents() {
     stepsInput.value = 20;
     guidanceInput.value = 5.5;
     octreeInput.value = '256';
-    seedInput.value = 42;
+    seedInput.value = Math.floor(Math.random() * 999999999);
     $('fastToggle').checked = false;
   }
 
