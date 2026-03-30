@@ -1648,6 +1648,7 @@ let manifest = {};
 let currentPromptId = null;
 let currentExportNodeId = null;
 let assignedGpuSlot = null; // 'A' or 'B', set by prompt response
+let pendingJobs = []; // {promptId, exportNodeId, outputPrefix, unit, skin, genParams}
 let pollInterval = null;
 let ws = null;
 let nodeStageMap = {}; // maps node ID → friendly stage name
@@ -2407,6 +2408,7 @@ function bindEvents() {
         });
       }
       log(`Cleared ${myPendingIds.length} pending job(s)`);
+      pendingJobs = [];
       await checkConnection();
     } catch (e) { log('Clear failed: ' + e.message, 'error'); }
   });
@@ -2743,6 +2745,15 @@ async function startGeneration() {
 
     const data = await resp.json();
     currentPromptId = data.prompt_id;
+    // Track this job for batch completion polling
+    pendingJobs.push({
+      promptId: data.prompt_id,
+      exportNodeId,
+      outputPrefix,
+      unit: unitSelect.value,
+      skin: skinSelect.value,
+      genParams: { ...currentGenParams },
+    });
     // Phase 4: track GPU assignment and reconnect WS if assigned to new GPU
     if (data.assigned_gpu_slot) {
       assignedGpuSlot = data.assigned_gpu_slot;
@@ -2770,53 +2781,72 @@ function startPolling() {
 }
 
 async function pollHistory() {
-  if (!currentPromptId) return;
+  if (!currentPromptId && pendingJobs.length === 0) return;
 
+  // Poll the active/latest job for UI progress
+  if (currentPromptId) {
+    await pollSinglePrompt(currentPromptId, currentExportNodeId, currentOutputPrefix,
+      unitSelect.value, skinSelect.value, currentGenParams, true);
+  }
+
+  // Poll all other pending jobs (batch completions)
+  const stillPending = [];
+  for (const job of pendingJobs) {
+    if (job.promptId === currentPromptId) {
+      stillPending.push(job); // handled above or still active
+      continue;
+    }
+    const completed = await pollSinglePrompt(job.promptId, job.exportNodeId, job.outputPrefix,
+      job.unit, job.skin, job.genParams, false);
+    if (!completed) {
+      stillPending.push(job);
+    }
+  }
+  pendingJobs = stillPending;
+}
+
+async function pollSinglePrompt(promptId, exportNodeId, outputPrefix, unit, skin, genParams, isActive) {
   try {
-    const resp = await fetch(gpuUrl(`/api/history/${currentPromptId}`));
-    if (!resp.ok) return;
+    const resp = await fetch(gpuUrl(`/api/history/${promptId}`));
+    if (!resp.ok) return false;
 
     const data = await resp.json();
-    const entry = data[currentPromptId];
+    const entry = data[promptId];
 
-    if (!entry) {
-      // Not in history yet — still running or queued
-      return;
-    }
+    if (!entry) return false; // Not in history yet
 
-    // Check for errors in outputs
+    // Check for errors
     if (entry.status?.status_str === 'error') {
-      clearInterval(pollInterval);
-      pollInterval = null;
-      const errMsg = entry.status?.messages?.find(m => m[0] === 'execution_error');
-      const detail = errMsg ? errMsg[1]?.exception_message || 'Unknown error' : 'Unknown error';
-      log('Generation failed: ' + detail, 'error');
-      setGenerating(false);
-      setStatus('Generation failed', 'error');
-      return;
+      if (isActive) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        const errMsg = entry.status?.messages?.find(m => m[0] === 'execution_error');
+        const detail = errMsg ? errMsg[1]?.exception_message || 'Unknown error' : 'Unknown error';
+        log('Generation failed: ' + detail, 'error');
+        setGenerating(false);
+        setStatus('Generation failed', 'error');
+      } else {
+        log(`Background job failed: ${unit}/${skin}`, 'error');
+      }
+      return true; // completed (with error)
     }
 
     // Check if complete (has outputs)
     if (entry.outputs) {
-      clearInterval(pollInterval);
-      pollInterval = null;
+      const fmt = formatSelect.value || 'glb';
+      const fmtExt = fmt === 'gltf' ? 'gltf' : fmt;
 
-      // Find the GLB output from the export node
-      const exportOutput = entry.outputs[currentExportNodeId];
+      // Find GLB output from export node
+      const exportOutput = entry.outputs[exportNodeId];
       let glbFile = null;
 
-      const fmt = formatSelect.value || 'glb';
-      const fmtExt = fmt === 'gltf' ? 'gltf' : fmt; // glb, gltf, obj
-
       if (exportOutput) {
-        // Hy3DExportMesh outputs files array or text with path
         if (exportOutput.glb_files) {
           glbFile = exportOutput.glb_files[0]?.filename;
         } else if (exportOutput.text) {
           const pathMatch = exportOutput.text.find(t => t.endsWith('.' + fmtExt) || t.endsWith('.glb'));
           glbFile = pathMatch;
         }
-        // Generic scan of all output values
         if (!glbFile) {
           const outputStr = JSON.stringify(exportOutput);
           const fmtMatch = outputStr.match(new RegExp(`([^"\\/\\\\]+\\.(?:${fmtExt}|glb))`));
@@ -2824,7 +2854,7 @@ async function pollHistory() {
         }
       }
 
-      // Fallback: scan all outputs for any model file reference
+      // Fallback: scan all outputs
       if (!glbFile) {
         const allOutputStr = JSON.stringify(entry.outputs);
         const fmtMatch = allOutputStr.match(new RegExp(`([^"\\/\\\\]+\\.(?:${fmtExt}|glb))`));
@@ -2832,30 +2862,36 @@ async function pollHistory() {
       }
 
       if (glbFile) {
-        log('Generation complete: ' + glbFile, 'success');
-        saveMetadata(glbFile);
-        const glbUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(glbFile)}&type=output&promptId=${encodeURIComponent(currentPromptId)}`;
-        addToHistory(unitSelect.value, skinSelect.value, glbUrl, glbFile, currentGenParams);
-        setGenerating(false);
-        setStatus('Fabrication complete', 'success');
-        loadModel(glbFile);
-      } else {
-        // Hy3DExportMesh outputs a STRING path, not tracked in ComfyUI outputs.
-        // Scan the output directory for files matching our prefix.
-        const prefix = currentOutputPrefix;
-        if (prefix) {
-          log('Scanning output directory for ' + prefix + '...');
-          await findOutputFile(prefix);
-        } else {
-          log('Generation completed but no output file found', 'error');
+        const glbUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(glbFile)}&type=output&promptId=${encodeURIComponent(promptId)}`;
+        addToHistory(unit, skin, glbUrl, glbFile, genParams);
+
+        if (isActive) {
+          log('Generation complete: ' + glbFile, 'success');
+          saveMetadata(glbFile);
+          clearInterval(pollInterval);
+          pollInterval = null;
           setGenerating(false);
-          setStatus('Complete — no file found', 'error');
+          setStatus('Fabrication complete', 'success');
+          loadModel(glbFile);
+        } else {
+          log(`Background job complete: ${unit}/${skin} — ${glbFile}`, 'success');
         }
+        return true; // completed
+      } else if (outputPrefix) {
+        if (isActive) {
+          log('Scanning output directory for ' + outputPrefix + '...');
+          await findOutputFile(outputPrefix);
+        }
+        return true; // handled by findOutputFile
       }
     }
+
+    return false; // not yet complete
   } catch (err) {
-    // Network error during polling, keep trying
-    log('Poll error: ' + err.message, 'error');
+    if (isActive) {
+      log('Poll error: ' + err.message, 'error');
+    }
+    return false;
   }
 }
 
