@@ -725,7 +725,7 @@ model-viewer::part(default-progress-bar) {
   padding: 10px;
   z-index: 200;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  min-width: 280px;
+  min-width: 380px;
 }
 .favs-dropdown-title {
   font-family: var(--mono);
@@ -738,13 +738,12 @@ model-viewer::part(default-progress-bar) {
 .favs-dropdown-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  max-height: 210px;
+  gap: 8px;
+  max-height: 320px;
   overflow-y: auto;
 }
 .favs-dropdown-item {
-  width: 60px;
-  height: 60px;
+  width: 80px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg-input);
@@ -752,6 +751,10 @@ model-viewer::part(default-progress-bar) {
   overflow: hidden;
   transition: all 0.2s;
   position: relative;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .favs-dropdown-item:hover {
   border-color: #ffd700;
@@ -759,7 +762,7 @@ model-viewer::part(default-progress-bar) {
 }
 .favs-dropdown-item img {
   width: 100%;
-  height: 100%;
+  height: 60px;
   object-fit: contain;
 }
 .favs-dropdown-empty {
@@ -800,11 +803,11 @@ model-viewer::part(default-progress-bar) {
 }
 .history-card {
   flex-shrink: 0;
-  width: 90px;
+  width: 120px;
   cursor: pointer;
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 4px;
+  padding: 6px;
   background: var(--bg-input);
   transition: all 0.2s;
   position: relative;
@@ -818,28 +821,28 @@ model-viewer::part(default-progress-bar) {
 }
 .history-card-img {
   width: 100%;
-  height: 50px;
+  height: 80px;
   object-fit: contain;
   border-radius: 2px;
 }
 .history-card-label {
-  font-size: 9px;
+  font-size: 10px;
   font-family: var(--mono);
   color: var(--text-secondary);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 .history-card-overlay {
   position: absolute;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.5);
