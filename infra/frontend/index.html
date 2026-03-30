@@ -2927,7 +2927,7 @@ async function pollSinglePrompt(promptId, exportNodeId, outputPrefix, unit, skin
       } else if (outputPrefix) {
         if (isActive) {
           log('Scanning output directory for ' + outputPrefix + '...');
-          await findOutputFile(outputPrefix);
+          await findOutputFile(outputPrefix, unit, skin, genParams, promptId);
         }
         return true; // handled by findOutputFile
       }
@@ -2942,20 +2942,24 @@ async function pollSinglePrompt(promptId, exportNodeId, outputPrefix, unit, skin
   }
 }
 
-async function findOutputFile(prefix) {
+async function findOutputFile(prefix, unit, skin, genParams, promptId) {
   // Hy3DExportMesh saves files as {prefix}_{00001}_.glb with incrementing counter.
   // Try the most recent counter values (highest first).
+  unit = unit || unitSelect.value;
+  skin = skin || skinSelect.value;
+  genParams = genParams || currentGenParams;
+  promptId = promptId || currentPromptId;
   const fmt = formatSelect.value || 'glb';
   for (let i = 20; i >= 1; i--) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
     try {
-      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output&promptId=${encodeURIComponent(currentPromptId)}`, { method: 'HEAD' });
+      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output&promptId=${encodeURIComponent(promptId)}`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: ' + filename, 'success');
         saveMetadata(filename);
-        const foundUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output&promptId=${encodeURIComponent(currentPromptId)}`;
-        addToHistory(unitSelect.value, skinSelect.value, foundUrl, filename, currentGenParams);
+        const foundUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&type=output&promptId=${encodeURIComponent(promptId)}`;
+        addToHistory(unit, skin, foundUrl, filename, genParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
         loadModel(filename);
@@ -2968,12 +2972,12 @@ async function findOutputFile(prefix) {
     const counter = String(i).padStart(5, '0');
     const filename = `${prefix}_${counter}_.${fmt}`;
     try {
-      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output&promptId=${encodeURIComponent(currentPromptId)}`, { method: 'HEAD' });
+      const resp = await fetch(`${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output&promptId=${encodeURIComponent(promptId)}`, { method: 'HEAD' });
       if (resp.ok) {
         log('Found output: 3D/' + filename, 'success');
         saveMetadata(filename);
-        const found3dUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output&promptId=${encodeURIComponent(currentPromptId)}`;
-        addToHistory(unitSelect.value, skinSelect.value, found3dUrl, filename, currentGenParams);
+        const found3dUrl = `${gpuUrl('/api/view')}?filename=${encodeURIComponent(filename)}&subfolder=3D&type=output&promptId=${encodeURIComponent(promptId)}`;
+        addToHistory(unit, skin, found3dUrl, filename, genParams);
         setGenerating(false);
         setStatus('Fabrication complete', 'success');
         loadModel(filename, '3D');
